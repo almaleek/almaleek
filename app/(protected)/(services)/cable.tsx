@@ -21,16 +21,16 @@ import PinModal from "@/components/modals/pinModal";
 
 import { RootState } from "@/redux/store";
 import { cableLogos } from "@/constants/cabletvlogo";
-import {
-  fetchCableProviders,
-  fetchCablePackages,
-  validateSmartcard,
-  subscribeCable,
-} from "@/redux/features/remita/remitaSlice";
 import { useToast } from "@/components/toast/toastProvider";
 import BannerCarousel from "@/components/carousel/banner";
 import { Ionicons } from "@expo/vector-icons";
-import { getRemitaServices } from "@/redux/features/easyAccess/service";
+import {
+  getRemitaPlanServices,
+  getRemitaServices,
+   handleVerifyTvSub,
+  purchaseTvSub,
+} from "@/redux/features/easyAccess/service";
+
 
 // Banner Images
 const banners = [
@@ -57,6 +57,7 @@ export default function CableScreen() {
 
   // LOCAL STATE
   const [selectedProvider, setSelectedProvider] = useState("DSTV");
+  const [selectedProviderCode, setSelectedProviderCode] = useState("");
   const [planCategory, setPlanCategory] = useState<string[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isVerified, setIsVerified] = useState(false);
@@ -69,6 +70,7 @@ export default function CableScreen() {
   const [activeTab, setActiveTab] = useState("HOT");
   const [isVerifying, setIsVerifying] = useState(false);
   const [cablePlans, setCablePlans] = useState();
+  const {remitaPlans, remitaServices} = useSelector((state:RootState)=>state.easyAccessdataPlans)
 
   const defaultProvider = {
     name: "DSTV",
@@ -78,36 +80,43 @@ export default function CableScreen() {
   /** ------------------------
    *  LOAD PROVIDERS ON MOUNT
    * ------------------------ */
-  useEffect(() => {
-    dispatch(fetchCableProviders());
-        // dispatch(getRemitaServices("4"))
+    useEffect(() => {
+    dispatch(getRemitaServices("4"));
   }, [dispatch]);
 
-  const onProviderChoose = async (providerName: string, providerCode?: string) => {
+  const onProviderChoose = async (
+    providerName: string,
+    providerCode?: string
+  ) => {
     setSelectedProvider(providerName);
+    if (providerCode) setSelectedProviderCode(providerCode);
     setProviderModal(false);
-
-    try {
-      const result = await dispatch(fetchCablePackages(providerCode || providerName));
-      if (fetchCablePackages.fulfilled.match(result)) {
-        setPlanCategory((result.payload || []).map((p: any) => p?.name || p?.packageName));
-      }
-    } catch {
-      showToast("Failed to fetch categories", "error");
-    }
   };
 
   const handleVerify = async (smartcardNumber: string, providerCode?: string) => {
     setIsVerifying(true);
+
+    let activeCode = providerCode || selectedProviderCode;
+    if (!activeCode) {
+      const service = Array.isArray(remitaServices)
+        ? remitaServices.find(
+            (s: any) =>
+              s.name === selectedProvider || s.providerName === selectedProvider
+          )
+        : null;
+      activeCode = service?.code;
+    }
+
     try {
       const resultAction = await dispatch(
-        validateSmartcard({
-          providerCode: providerCode || selectedProvider,
-          smartcardNumber: smartcardNumber,
+        handleVerifyTvSub({
+          productCode: activeCode || "",
+          cableType: selectedProvider,
+          smartCardNo: smartcardNumber,
         })
       );
 
-      if (validateSmartcard.fulfilled.match(resultAction)) {
+      if (handleVerifyTvSub.fulfilled.match(resultAction)) {
         const data = resultAction.payload?.data || resultAction.payload || {};
         const content = data?.message?.content || data?.content || {};
         setCustomerDetails({
@@ -130,7 +139,14 @@ export default function CableScreen() {
   /** ------------------------
    *  SELECT CATEGORY → LOAD PLANS
    * ------------------------ */
-  const handleCategory = async (category: string) => {};
+  const handleCategory = async (category: string) => {
+    dispatch(
+      getRemitaPlanServices({
+        categoryCode: "cable_tv",
+        productCode: category.toLowerCase(),
+      })
+    );
+  };
 
   useEffect(() => {
     handleCategory(selectedProvider);
@@ -141,28 +157,37 @@ export default function CableScreen() {
    * ------------------------ */
   const handlePurchase = async (pin: string) => {
     if (!selectedPlan) return alert("Select a plan");
+    if (!isVerified) {
+      showToast("Please verify your SmartCard Number first", "error");
+      return;
+    }
 
     const payload = {
-      providerCode: selectedPlan?.providerCode || selectedPlan?.provider || selectedProvider,
-      smartcardNumber: smartCardNo,
-      packageCode: selectedPlan?.packageCode || selectedPlan?.code || selectedPlan?.name,
-      amount: Number(selectedPlan?.amount || selectedPlan?.ourPrice || 0),
-      paymentIdentifier: `CABLE-${Date.now()}`,
+      productCode: selectedPlan?.code || "",
+      cableType: selectedProvider,
+      smartCardNo: smartCardNo || customerDetails.smartCard || "",
+      pinCode: pin,
+      customerName: customerDetails.name || "",
+      // amount: Number(selectedPlan?.amount || selectedPlan?.ourPrice || 0),
+      amount: 100,
     };
 
     try {
       setLoading(true);
 
-      const result = await dispatch(subscribeCable(payload));
-      if (subscribeCable.fulfilled.match(result)) {
-        showToast("✅ TV Cable subscription successful!", "success");
-      } else {
-        showToast(
-          result.payload?.error ||
-            "❌ TV Cable purchase failed. Please try again.",
-          "error"
-        );
+      const result = await dispatch(purchaseTvSub(payload));
+      const resPayload = result.payload as any;
+
+      if (purchaseTvSub.fulfilled.match(result)) {
+        // showToast("✅ TV Cable subscription successful!", "success");
+        if (resPayload?.transactionId) {
+          router.push({
+            pathname: "/(protected)/history/[id]",
+            params: { id: resPayload.transactionId },
+          });
+        }
       }
+
     } catch {
       showToast("Error processing subscription", "error");
     } finally {
@@ -179,7 +204,16 @@ export default function CableScreen() {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "") || "default";
 
+  const extractDuration = (name: string) => {
+    const match = name.match(/(\d+\s*(?:MONTH|DAY|WEEK|YEAR)S?)/i);
+    return match ? match[0] : "";
+  };
+
   const tabs = ["HOT", "Premium"];
+
+  const plans = Array.isArray(remitaPlans)
+    ? remitaPlans
+    : (remitaPlans as any)?.items || [];
 
   return (
     <ApSafeAreaView>
@@ -319,7 +353,7 @@ export default function CableScreen() {
 
               {/* Plan Grid */}
               <View className="px-4 mt-4 flex-row flex-wrap justify-between">
-                {Array.isArray(cablePackages) && cablePackages.map((p: any, i: number) => (
+                {plans.map((p: any, i: number) => (
                   <TouchableOpacity
                     key={i}
                     onPress={() => {
@@ -328,14 +362,14 @@ export default function CableScreen() {
                     }}
                     className="w-[32%] bg-gray-100 border border-gray-200 rounded-xl p-4 mb-4"
                   >
-                    <Text className="text-[15px] font-semibold  text-center">
+                    <Text className="text-[12px] font-semibold  text-center">
                       {p?.name || p?.packageName || p?.code}
                     </Text>
-                    <Text className="text-gray-600 text-sm mt-1 text-center bg-green-100 px-2 py-1 rounded-full">
-                      {p?.validity || p?.duration || ""}
-                    </Text>
-                    <Text className="text-green-600 font-semibold mt-1 text-center text-lg">
-                      {p?.amount || p?.ourPrice}
+                    {/* <Text className="text-gray-600 text-sm mt-1 text-center bg-green-100 px-2 py-1 rounded-full">
+                      {p?.validity || p?.duration || extractDuration(p?.name || "")}
+                    </Text> */}
+                    <Text className=" text-gray-600 text-lg mt-1 text-center bg-green-100 px-2 py-1 rounded-full">
+                      ₦{p?.amount || p?.ourPrice}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -350,8 +384,8 @@ export default function CableScreen() {
                     </Text>
 
                     <ScrollView>
-                      {Array.isArray(cableProviders) &&
-                        cableProviders.map((item: any) => {
+                      {Array.isArray(remitaServices) &&
+                        remitaServices.map((item: any) => {
                         const formatted = formatProvider(item.name || item.providerName || item.code || "");
                         return (
                           <TouchableOpacity

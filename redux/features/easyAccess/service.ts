@@ -175,7 +175,7 @@ export const handleVerifyTvSub = createAsyncThunk(
 
 export const purchaseTvSub = createAsyncThunk(
   "dataPlans/purchaseTvSub",
-  async ({ payload }: { payload: any }, { rejectWithValue }) => {
+  async (payload: any, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(
         "/easyaccess/purchase-tvsub",
@@ -225,6 +225,7 @@ export const purchaseElectricity = createAsyncThunk<
       "/easyaccess/purchase-electricity",
       payload
     );
+    console.log(response, "the api...")
 
     return {
       message: response.data.message,
@@ -467,6 +468,8 @@ export const getRemitaPlanServices = createAsyncThunk(
     }
   }
 );
+
+
 
 // --- Slice State ---
 interface DataPlansState {

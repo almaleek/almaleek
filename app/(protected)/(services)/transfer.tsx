@@ -110,8 +110,10 @@ export default function TransferScreen() {
             params: { id: String(txId) },
           });
         } else {
-          Alert.alert("Success", "Transfer initiated successfully!");
-          router.back();
+          router.push({
+            pathname: "/(protected)/history/[id]",
+            params: { id: String(txId) },
+          });
         }
       } finally {
         handledOnceRef.current = false;

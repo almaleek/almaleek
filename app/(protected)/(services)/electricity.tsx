@@ -22,14 +22,11 @@ import ApButton from "@/components/button/button";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import {
-  fetchElectricityProviders,
-  validateElectricityMeter,
-  vendElectricity,
-} from "@/redux/features/remita/remitaSlice";
-import {
   getRemitaPlanServices,
   getRemitaServices,
   handleVerifyMeter,
+  purchaseElectricity
+
 } from "@/redux/features/easyAccess/service";
 import { electricityLogos } from "@/constants/eletricitylog";
 import { useToast } from "@/components/toast/toastProvider";
@@ -186,12 +183,12 @@ export default function ElectricityScreen() {
   //
   // HANDLE PURCHASE
   //
-  const performPurchase = async (values: any, enteredPin: string) => {
+  const performPurchase = async (values: any, pin: string) => {
     if (!isMeterVerified) {
       showToast("Please verify your meter number first!", "error");
       return;
     }
-    if (!enteredPin || enteredPin.length !== 4) {
+    if (!pin || pin.length !== 4) {
       showToast("Please enter a valid 4-digit PIN", "error");
       return;
     }
@@ -202,25 +199,27 @@ export default function ElectricityScreen() {
       meterType:
         (values.metertype || selectedTab).toLowerCase() === "prepaid" ? "01" : "02",
       amount: Number(values.amount),
-      phoneNumber: values.phone || "",
+      pinCode:pin,
     };
 
     setLoading(true);
     try {
-      const resultAction = await dispatch(vendElectricity(payload));
+      const resultAction = await dispatch(purchaseElectricity(payload));
+      const resPayload = resultAction.payload as any;
+      console.log(resPayload, "the payload");
 
-      if (vendElectricity.fulfilled.match(resultAction)) {
+      if (purchaseElectricity.fulfilled.match(resultAction)) {
         showToast("✅ Electricity vend successful!", "success");
       } else {
-        showToast(
-          (resultAction.payload as any)?.error ||
-            "❌ Electricity purchase failed. Please try again.",
-          "error"
-        );
+        showToast(resPayload?.error || resPayload?.message || "Purchase failed", "error");
       }
-    } catch (err) {
-      console.error("performPurchase error:", err);
-      showToast("An unexpected error occurred while purchasing", "error");
+      // Navigate if transactionId exists, regardless of success/failure
+      if (resPayload?.transactionId) {
+        router.push({
+          pathname: "/(protected)/history/[id]",
+          params: { id: resPayload.transactionId },
+        });
+      }
     } finally {
       setLoading(false);
       setPinVisible(false);
@@ -514,7 +513,6 @@ export default function ElectricityScreen() {
                 }}
                 onSubmit={(pin) => {
                   setPinCode(pin);
-                  // perform purchase with current form values
                   performPurchase(values, pin);
                 }}
               />
