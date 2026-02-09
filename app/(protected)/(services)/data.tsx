@@ -46,12 +46,13 @@ export default function DataPlanScreen() {
     logo: any;
   } | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("");
+  const [activeTab, setActiveTab] = useState("All");
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [pinVisible, setPinVisible] = useState(false);
   const [pinCode, setPinCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [plansLoading, setPlansLoading] = useState(false);
+  const [details, setDetails] = useState<any[]>([]);
 
   const { user } = useSelector((state: RootState) => state.auth);
   const { plans, dataServices } = useSelector(
@@ -97,7 +98,7 @@ export default function DataPlanScreen() {
         setCategories(cats);
 
         const firstCategory = cats[0] || "";
-        setActiveTab(firstCategory);
+        setActiveTab("All");
 
         if (firstCategory) {
           fetchPlans(network.name, firstCategory);
@@ -127,6 +128,25 @@ export default function DataPlanScreen() {
       setPlansLoading(false);
     }
   };
+
+  const durationTabs = ["All", "Daily", "Weekly", "Monthly"];
+  const getDurationType = (validity: string) => {
+    const v = String(validity).toLowerCase();
+    if (v.includes("daily") || /\b\d+\s*day(s)?\b/.test(v) || v.includes("day")) {
+      return "Daily";
+    }
+    if (v.includes("weekly") || /\b7\s*day(s)?\b/.test(v) || v.includes("week")) {
+      return "Weekly";
+    }
+    if (v.includes("monthly") || /\b30\s*day(s)?\b/.test(v) || v.includes("month")) {
+      return "Monthly";
+    }
+    return "All";
+  };
+  const visiblePlans =
+    activeTab === "All"
+      ? plans
+      : plans.filter((p: any) => getDurationType(p.validity) === activeTab);
 
   // Handle network selection
   const handleNetworkSelect = async (network: { name: string; logo: any }) => {
@@ -208,12 +228,11 @@ export default function DataPlanScreen() {
           </Text>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {categories.map((cat, i) => (
+            {durationTabs.map((cat, i) => (
               <TouchableOpacity
                 key={i}
                 onPress={() => {
                   setActiveTab(cat);
-                  selectedNetwork && fetchPlans(selectedNetwork.name, cat);
                 }}
                 className="mr-6 pb-2"
               >
@@ -241,12 +260,23 @@ export default function DataPlanScreen() {
           </View>
         ) : (
           <View className="px-4 mt-4 flex-row flex-wrap justify-between">
-            {plans.map((p, i) => (
+            {visiblePlans.map((p, i) => (
               <TouchableOpacity
                 key={i}
                 className="w-[32%] bg-gray-100 border border-gray-200 rounded-xl p-4 mb-4"
                 onPress={() => {
+                  if (!phone) {
+                    showToast("Enter phone number first", "error");
+                    return;
+                  }
                   setSelectedPlan(p);
+                  setDetails([
+                    { label: "Network", value: selectedNetwork?.name },
+                    { label: "Phone Number", value: phone },
+                    { label: "Plan", value: p.name },
+                    { label: "Validity", value: p.validity },
+                    { label: "Amount", value: `₦${p.ourPrice}` },
+                  ]);
                   setPinVisible(true);
                 }}
               >
@@ -275,6 +305,8 @@ export default function DataPlanScreen() {
           visible={pinVisible}
           onClose={() => setPinVisible(false)}
           loading={loading}
+          title="Review Data Purchase"
+          details={details}
           onSubmit={(pin) => {
             setPinCode(pin);
             handleFormSubmit(pin);

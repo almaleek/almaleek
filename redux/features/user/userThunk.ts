@@ -98,7 +98,22 @@ export const resendVerificationCode = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.msg || "Failed to resend verification code"
+        error.response?.data?.msg || "Resending verification failed"
+      );
+    }
+  }
+);
+
+// 🟢 GET REFERRAL STATS
+export const getReferralStats = createAsyncThunk(
+  "auth/getReferralStats",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get("/auth/referrals");
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to fetch referral stats"
       );
     }
   }

@@ -42,6 +42,7 @@ export default function ExamScreen() {
   const [loading, setLoading] = useState(false);
   const [pinCode, setPinCode] = useState("");
   const [pinVisible, setPinVisible] = useState(false);
+  const [details, setDetails] = useState<any[]>([]);
   const [providerModal, setProviderModal] = useState(false);
 
   useEffect(() => {
@@ -88,34 +89,27 @@ export default function ExamScreen() {
 
   const handleFormSubmit = async (formValues: any, enteredPin: string) => {
     if (!selectedPlan) return showToast("Please select an Exam Type", "error");
-
     if (!enteredPin || enteredPin.length !== 4) {
       showToast("Please enter a valid 4-digit PIN", "error");
       return;
     }
-
     try {
       const quantity = Number(formValues.quantity);
       const price = unitPrice > 0 ? unitPrice : Number(formValues.amount);
       const totalAmount = quantity * price;
-
       const payload = {
         productCode: selectedPlan?.code || "",
         pinCode: enteredPin,
         phoneNumber: formValues.phone,
         amount: totalAmount,
       };
-
       setLoading(true);
-
       const result = await dispatch(purchaseExam({ payload }));
-
       setLoading(false);
-
       if (purchaseExam.fulfilled.match(result)) {
         showToast("✅ Exam Pin purchase successful!", "success");
       } else {
-        showToast(result?.payload?.error || "Exam purchase failed..", "error");
+        showToast( result?.payload?.error || "Exam purchase failed..", "error");
       }
     } catch (error: any) {
       setLoading(false);
@@ -227,6 +221,16 @@ export default function ExamScreen() {
                   showToast("Please enter amount", "error");
                   return;
                 }
+                const quantity = Number(values.quantity);
+                const price = unitPrice > 0 ? unitPrice : Number(values.amount);
+                const totalAmount = quantity * price;
+                setDetails([
+                  { label: "Exam Board", value: selectedProvider?.name },
+                  { label: "Exam Type", value: selectedPlan?.name },
+                  { label: "Quantity", value: values.quantity },
+                  { label: "Phone Number", value: values.phone },
+                  { label: "Total Amount", value: `₦${totalAmount}` },
+                ]);
                 setPinVisible(true);
               }}
             >
@@ -279,10 +283,11 @@ export default function ExamScreen() {
                     onPress={handleSubmit as any}
                     disabled={loading}
                   />
-
                   <PinModal
                     visible={pinVisible}
                     loading={loading}
+                    title="Review Exam PIN Purchase"
+                    details={details}
                     onClose={() => {
                       if (!loading) setPinVisible(false);
                     }}
@@ -296,6 +301,7 @@ export default function ExamScreen() {
             </Formik>
           </View>
         )}
+
 
         {/* Provider Modal */}
         <Modal visible={providerModal} transparent animationType="fade">

@@ -1,19 +1,39 @@
-import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Alert, Share } from "react-native";
-import { useSelector } from "react-redux";
-import { RootState } from "@/redux/store";
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, Alert, Share, ScrollView, RefreshControl, ActivityIndicator } from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/redux/store";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import ApHomeHeader from "@/components/headers/homeheader"; // adjust if needed
+import ApHomeHeader from "@/components/headers/homeheader";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
+import { getReferralStats } from "@/redux/features/user/userThunk";
+import { Users, CreditCard, ChevronRight } from "lucide-react-native";
 
-export default function Profile() {
-  const { user } = useSelector((state: RootState) => state.auth);
+export default function Reward() {
+  const { user, referralStats, loading } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [referralCode] = useState(user?.referralCode || "YOUR_REFERRAL_CODE");
+  const referralCode = user?.referralCode || "N/A";
   const referralLink = `https://www.almaleek.com.ng/auth/signup?ref=${referralCode}`;
 
-  const router = useRouter();
+  const fetchStats = async () => {
+    try {
+      await dispatch(getReferralStats()).unwrap();
+    } catch (error) {
+      console.log("Failed to fetch stats", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchStats();
+    setRefreshing(false);
+  };
 
   const copyToClipboard = async () => {
     await Clipboard.setStringAsync(referralLink);
@@ -30,68 +50,95 @@ export default function Profile() {
     }
   };
 
+  const isAgent = user?.role === "agent";
+  console.log(user?.role, "the role")
+
   return (
     <ApSafeAreaView>
       <View className="pt-4">
         <ApHomeHeader />
       </View>
 
-      <View className="bg-white shadow-lg rounded-xl mt-3  p-4">
-        <Text className="text-lg font-bold text-gray-800">Refer & Earn</Text>
-        <Text className="text-gray-600 mt-1 ">
-          Invite friends & earn rewards.
-        </Text>
+      <ScrollView 
+        className="flex-1 px-4 mt-2"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        <View className="bg-white shadow-sm rounded-xl p-5 mb-4 border border-gray-100">
+          <Text className="text-xl font-bold text-gray-800">Refer & Earn</Text>
+          <Text className="text-gray-500 mt-1">
+            {isAgent 
+              ? "Earn commissions on every transaction from your referrals." 
+              : "Invite friends and earn a bonus when they sign up."}
+          </Text>
 
-        {/* Referral Code */}
-        <View className="flex-row items-center justify-between bg-gray-100 p-3 rounded-lg mt-4">
-          <Text className="text-gray-800 font-semibold">{referralCode}</Text>
-
-          <TouchableOpacity
-            onPress={copyToClipboard}
-            className="bg-blue-500 px-3 py-1 rounded-lg"
-          >
-            <Text className="text-white text-sm">Copy</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Invite Link */}
-        <View className="mt-4">
-          <Text className="text-sm text-gray-500">Your Invite Link:</Text>
-
-          <View className="flex-row items-center justify-between bg-gray-100 p-3 rounded-lg mt-1">
-            <Text
-              className="text-sm text-gray-700 flex-1 mr-2"
-              numberOfLines={1}
-            >
-              {referralLink}
-            </Text>
-
-            <TouchableOpacity
-              onPress={copyToClipboard}
-              className="bg-blue-500 px-3 py-1 rounded-lg"
-            >
-              <Text className="text-white text-sm">Copy</Text>
-            </TouchableOpacity>
+          {/* Stats Cards */}
+          <View className="flex-row gap-3 mt-6">
+            <View className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 items-center">
+              <Text className="text-gray-500 text-xs font-medium uppercase">Total Referrals</Text>
+              <Text className="text-2xl font-bold text-blue-700 mt-1">
+                {referralStats?.totalReferrals || 0}
+              </Text>
+            </View>
+            <View className="flex-1 bg-green-50 p-4 rounded-xl border border-green-100 items-center">
+              <Text className="text-gray-500 text-xs font-medium uppercase">
+                {isAgent ? "Total Commission" : "Total Bonus"}
+              </Text>
+              <Text className="text-2xl font-bold text-green-700 mt-1">
+                ₦{referralStats?.totalEarnings || 0}
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Earnings */}
-        <View className="mt-4 p-3 bg-green-100 rounded-lg">
-          <Text className="text-green-700 text-center">
-            Earn up to <Text className="font-bold">₦500</Text> per referral!
-          </Text>
+        {/* Referral Code Section */}
+        <View className="bg-white shadow-sm rounded-xl p-5 mb-4 border border-gray-100">
+          <Text className="text-sm font-medium text-gray-500 mb-3">Your Referral Code</Text>
+          <View className="flex-row items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-200 border-dashed">
+            <Text className="text-xl font-bold text-gray-800 tracking-wider">{referralCode}</Text>
+            <TouchableOpacity onPress={copyToClipboard} className="bg-blue-600 px-4 py-2 rounded-lg">
+              <Text className="text-white text-xs font-bold">COPY</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text className="text-sm font-medium text-gray-500 mt-5 mb-2">Share Link</Text>
+          <TouchableOpacity 
+            onPress={shareLink}
+            className="flex-row items-center justify-center bg-gray-900 py-3.5 rounded-xl"
+          >
+            <Text className="text-white font-semibold">Share Referral Link</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Share Button */}
-        <TouchableOpacity
-          className="mt-4 bg-blue-600 w-full py-2 rounded-lg"
-          onPress={shareLink}
-        >
-          <Text className="text-white text-center font-semibold">
-            Share Invite
-          </Text>
-        </TouchableOpacity>
-      </View>
+        {/* Recent Referrals List */}
+        <View className="mb-8">
+          <Text className="text-lg font-bold text-gray-800 mb-3">Recent Referrals</Text>
+          {referralStats?.referrals && referralStats.referrals.length > 0 ? (
+            referralStats.referrals.map((ref: any, index: number) => (
+              <View key={index} className="bg-white p-4 rounded-xl mb-2 flex-row items-center justify-between shadow-sm border border-gray-50">
+                <View className="flex-row items-center gap-3">
+                  <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center">
+                    <Text className="text-gray-600 font-bold text-sm">
+                      {ref.email?.charAt(0).toUpperCase() || "U"}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text className="font-semibold text-gray-800">{ref.email}</Text>
+                    <Text className="text-xs text-gray-400">Joined recently</Text>
+                  </View>
+                </View>
+                <View className="bg-green-100 px-2 py-1 rounded">
+                  <Text className="text-green-700 text-xs font-bold">Active</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View className="bg-white p-8 rounded-xl items-center justify-center border border-gray-100 border-dashed">
+              <Text className="text-gray-400">No referrals yet. Start sharing!</Text>
+            </View>
+          )}
+        </View>
+
+      </ScrollView>
     </ApSafeAreaView>
   );
 }

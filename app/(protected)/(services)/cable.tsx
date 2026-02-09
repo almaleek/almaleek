@@ -46,19 +46,9 @@ export default function CableScreen() {
 
   // GLOBAL STATE
   const { user } = useSelector((state: RootState) => state.auth);
-  const {
-    cableProviders,
-    cablePackages,
-    cablePackagesLoading,
-    smartcardValidationResult,
-    smartcardValidationLoading,
-    cableSubscribeLoading,
-  } = useSelector((state: RootState) => state.remita);
-
   // LOCAL STATE
   const [selectedProvider, setSelectedProvider] = useState("DSTV");
   const [selectedProviderCode, setSelectedProviderCode] = useState("");
-  const [planCategory, setPlanCategory] = useState<string[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [customerDetails, setCustomerDetails] = useState<any>({});
@@ -69,7 +59,7 @@ export default function CableScreen() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("HOT");
   const [isVerifying, setIsVerifying] = useState(false);
-  const [cablePlans, setCablePlans] = useState();
+  const [details, setDetails] = useState<any[]>([]);
   const {remitaPlans, remitaServices} = useSelector((state:RootState)=>state.easyAccessdataPlans)
 
   const defaultProvider = {
@@ -168,9 +158,10 @@ export default function CableScreen() {
       smartCardNo: smartCardNo || customerDetails.smartCard || "",
       pinCode: pin,
       customerName: customerDetails.name || "",
-      // amount: Number(selectedPlan?.amount || selectedPlan?.ourPrice || 0),
-      amount: 100,
+      amount: Number(selectedPlan?.amount || selectedPlan?.ourPrice || 0),
+    
     };
+    console.log(payload)
 
     try {
       setLoading(true);
@@ -358,6 +349,13 @@ export default function CableScreen() {
                     key={i}
                     onPress={() => {
                       setSelectedPlan(p);
+                      setDetails([
+                        { label: "Provider", value: selectedProvider },
+                        { label: "SmartCard Number", value: smartCardNo || customerDetails.smartCard },
+                        { label: "Customer Name", value: customerDetails.name },
+                        { label: "Plan", value: p?.name || p?.packageName || p?.code },
+                        { label: "Amount", value: `₦${p?.amount || p?.ourPrice}` },
+                      ]);
                       setPinVisible(true);
                     }}
                     className="w-[32%] bg-gray-100 border border-gray-200 rounded-xl p-4 mb-4"
@@ -421,6 +419,8 @@ export default function CableScreen() {
               <PinModal
                 visible={pinVisible}
                 loading={loading}
+                title="Review Cable Subscription"
+                details={details}
                 onClose={() => !loading && setPinVisible(false)}
                 onSubmit={(pin) => {
                   setPinCode(pin);

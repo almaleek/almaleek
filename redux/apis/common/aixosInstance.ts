@@ -2,7 +2,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
-const API_URL = "http://10.50.216.142:5000/api";
+const API_URL = "http://10.182.205.142:5000/api";
 
 let isRefreshing = false;
 let subscribers: ((token: string) => void)[] = [];

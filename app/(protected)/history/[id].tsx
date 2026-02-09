@@ -106,29 +106,49 @@ export default function TransactionPage() {
 
       <ApScrollView style={{ backgroundColor: "#f5f5f5", flex: 1 }}>
         <View className="p-4">
-          {/* RECEIPT CARD */}
           <View
             ref={receiptRef}
             collapsable={false}
-            className="bg-white p-6 rounded-2xl shadow-lg mx-1"
+            className="bg-white p-6 rounded-2xl shadow-xl mx-1 border border-gray-100"
           >
-            {/* Status Icon */}
-            <View className="items-center mb-4">
-              {transaction.status === "success" && (
-                <CheckCircle size={52} color="green" />
-              )}
-              {transaction.status === "pending" && (
-                <Clock size={52} color="orange" />
-              )}
-              {transaction.status === "failed" && (
-                <XCircle size={52} color="red" />
-              )}
-              <Text className="mt-2 text-xl font-bold">
-                {transaction.status?.toUpperCase()}
-              </Text>
+            <View className="items-center mb-6">
+              {transaction.status === "success" && <CheckCircle size={52} color="#16a34a" />}
+              {transaction.status === "pending" && <Clock size={52} color="#f59e0b" />}
+              {transaction.status === "failed" && <XCircle size={52} color="#dc2626" />}
+              <View
+                className={`mt-3 px-3 py-1 rounded-full border ${
+                  transaction.status === "success"
+                    ? "bg-green-100 border-green-200"
+                    : transaction.status === "pending"
+                    ? "bg-orange-100 border-orange-200"
+                    : "bg-red-100 border-red-200"
+                }`}
+              >
+                <Text
+                  className={`text-xs font-bold ${
+                    transaction.status === "success"
+                      ? "text-green-700"
+                      : transaction.status === "pending"
+                      ? "text-orange-700"
+                      : "text-red-700"
+                  }`}
+                >
+                  {transaction.status?.toUpperCase()}
+                </Text>
+              </View>
             </View>
 
-            {/* Transaction Fields */}
+            <Text className="text-3xl font-extrabold text-gray-900 text-center">
+              {formatCurrency(transaction.amount)}
+            </Text>
+            <Text className="text-gray-500 text-sm text-center mt-1">
+              {transaction.transaction_date
+                ? new Date(transaction.transaction_date).toLocaleString()
+                : "N/A"}
+            </Text>
+
+            <View className="h-[1px] bg-gray-200 my-6" />
+
             <RenderRow
               label="Reference"
               value={
@@ -136,10 +156,6 @@ export default function TransactionPage() {
                 transaction.reference_no ||
                 "N/A"
               }
-            />
-            <RenderRow
-              label="Amount"
-              value={formatCurrency(transaction.amount)}
             />
             <RenderRow
               label="Date"
@@ -151,7 +167,6 @@ export default function TransactionPage() {
             />
             <RenderRow label="Service" value={transaction.service || "N/A"} />
 
-            {/* CONDITIONAL FIELDS */}
             {transaction.network && (
               <RenderRow
                 label="Network"
@@ -191,7 +206,6 @@ export default function TransactionPage() {
             </Text>
           </View>
 
-          {/* ACTION BUTTONS */}
           <View className="flex-row justify-center gap-4 mt-6">
             {/* Download */}
             {/* <TouchableOpacity
@@ -213,14 +227,14 @@ export default function TransactionPage() {
             <TouchableOpacity
               onPress={handleShareOnly}
               disabled={processing}
-              className="flex-row items-center bg-blue-600 px-6 py-3 rounded-xl gap-4"
+              className="flex-row items-center bg-blue-600 px-6 py-3 rounded-2xl gap-4 shadow-md"
             >
               {processing ? (
                 <ActivityIndicator color="white" />
               ) : (
                 <>
                   <Share2 size={20} color="white" className="mr-2" />
-                  <Text className="text-white font-semibold">Share</Text>
+                  <Text className="text-white font-semibold">Share Receipt</Text>
                 </>
               )}
             </TouchableOpacity>

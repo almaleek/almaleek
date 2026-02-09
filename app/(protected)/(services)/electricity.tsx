@@ -79,6 +79,7 @@ export default function ElectricityScreen() {
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({});
   const [pinVisible, setPinVisible] = useState(false);
   const [pinCode, setPinCode] = useState("");
+  const [details, setDetails] = useState<any[]>([]);
   const {remitaPlans, remitaServices} = useSelector((state:RootState)=>state.easyAccessdataPlans)
 
   const defaultProvider = {
@@ -180,45 +181,42 @@ export default function ElectricityScreen() {
     }
   };
 
-  //
-  // HANDLE PURCHASE
-  //
-  const performPurchase = async (values: any, pin: string) => {
+  const handlePurchase = async (values: any, enteredPin: string) => {
     if (!isMeterVerified) {
       showToast("Please verify your meter number first!", "error");
       return;
     }
-    if (!pin || pin.length !== 4) {
+    if (!enteredPin || enteredPin.length !== 4) {
       showToast("Please enter a valid 4-digit PIN", "error");
       return;
     }
-
     const payload = {
       discoCode: selectedProvider?.code || "",
       meterNumber: values.meterno,
       meterType:
         (values.metertype || selectedTab).toLowerCase() === "prepaid" ? "01" : "02",
       amount: Number(values.amount),
-      pinCode:pin,
+      pinCode: enteredPin,
     };
-
-    setLoading(true);
     try {
-      const resultAction = await dispatch(purchaseElectricity(payload));
-      const resPayload = resultAction.payload as any;
-      console.log(resPayload, "the payload");
-
-      if (purchaseElectricity.fulfilled.match(resultAction)) {
-        showToast("✅ Electricity vend successful!", "success");
-      } else {
-        showToast(resPayload?.error || resPayload?.message || "Purchase failed", "error");
-      }
-      // Navigate if transactionId exists, regardless of success/failure
-      if (resPayload?.transactionId) {
+      setLoading(true);
+      const result = await dispatch(purchaseElectricity(payload as any));
+      if (purchaseElectricity.fulfilled.match(result)) {
+        showToast("Electricity purchase successful!", "success");
         router.push({
           pathname: "/(protected)/history/[id]",
-          params: { id: resPayload.transactionId },
+          params: { id: result.payload.transactionId },
         });
+      } else {
+        const txId = result.payload?.transactionId;
+        if (txId) {
+          router.push({
+            pathname: "/(protected)/history/[id]",
+            params: { id: txId },
+          });
+        } else {
+          showToast(result.payload?.error || "Purchase failed", "error");
+        }
       }
     } finally {
       setLoading(false);
@@ -272,8 +270,17 @@ export default function ElectricityScreen() {
               return;
             }
             setPinVisible(true);
+            setDetails([
+              { label: "Provider", value: selectedProvider?.name || defaultProvider.name },
+              { label: "Meter Number", value: values.meterno },
+              { label: "Meter Type", value: values.metertype || selectedTab },
+              { label: "Customer Name", value: customerDetails.name },
+              { label: "Address", value: customerDetails.address },
+              { label: "Amount", value: `₦${Number(values.amount).toLocaleString()}` },
+            ]);
           }}
         >
+          
           {({
             handleChange,
             handleBlur,
@@ -449,6 +456,19 @@ export default function ElectricityScreen() {
                   }}
                 />
               </View>
+              <PinModal
+                visible={pinVisible}
+                loading={loading}
+                title="Review Electricity Payment"
+                details={details}
+                onClose={() => {
+                  if (!loading) setPinVisible(false);
+                }}
+                onSubmit={(pin) => {
+                  setPinCode(pin);
+                  handlePurchase(values, pin);
+                }}
+              />
 
               {/* Provider Modal */}
               <Modal visible={providerModal} transparent animationType="slide">
@@ -503,19 +523,6 @@ export default function ElectricityScreen() {
                   </View>
                 </View>
               </Modal>
-
-              {/* PIN MODAL */}
-              <PinModal
-                visible={pinVisible}
-                loading={loading}
-                onClose={() => {
-                  if (!loading) setPinVisible(false);
-                }}
-                onSubmit={(pin) => {
-                  setPinCode(pin);
-                  performPurchase(values, pin);
-                }}
-              />
 
               {/* Fullscreen loader overlay (covers screen and modals) */}
               {loading && (

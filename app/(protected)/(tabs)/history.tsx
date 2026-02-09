@@ -5,25 +5,28 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  Modal,
+  ScrollView
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { fetchUserTransactions } from "@/redux/features/transaction/transactionSlice";
-import { Filter, X, Receipt } from "lucide-react-native";
+import { Filter, X, Receipt, Search, ChevronDown, Check, Calendar, ArrowUpRight, ArrowDownLeft } from "lucide-react-native";
 import ApHomeHeader from "@/components/headers/homeheader";
 import { useRouter } from "expo-router";
-import { Phone, Wifi, Tv, Wallet, Bolt, Smartphone } from "lucide-react-native";
+import { Phone, Wifi, Tv, Wallet, Bolt, Smartphone, GraduationCap } from "lucide-react-native";
 import debounce from "lodash.debounce";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
 
 const iconColors: Record<string, string> = {
-  airtime: "#1E90FF",
-  data: "#00C851",
-  cable: "#FF8800",
-  electricity: "#FFC107",
-  wallet: "#6A5ACD",
-  transfer: "#FF4444",
-  default: "#444444",
+  airtime: "#3b82f6", // blue-500
+  data: "#10b981", // emerald-500
+  cable: "#f97316", // orange-500
+  electricity: "#eab308", // yellow-500
+  wallet: "#8b5cf6", // violet-500
+  transfer: "#ef4444", // red-500
+  exam: "#6366f1", // indigo-500
+  default: "#6b7280", // gray-500
 };
 
 const serviceIcons: Record<string, any> = {
@@ -33,6 +36,7 @@ const serviceIcons: Record<string, any> = {
   electricity: Bolt,
   wallet: Wallet,
   transfer: Receipt,
+  exam: GraduationCap,
 };
 
 const TYPE_TO_SERVICES: Record<string, string[]> = {
@@ -81,23 +85,26 @@ export default function HistoryPage() {
     return d >= after;
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusStyle = (status: string) => {
     switch (status?.toLowerCase()) {
       case "success":
       case "refund":
-        return "text-green-700 bg-green-200";
+        return { bg: "bg-green-100", text: "text-green-700", dot: "bg-green-500" };
       case "failed":
-        return "text-red-700 bg-red-200";
+        return { bg: "bg-red-100", text: "text-red-700", dot: "bg-red-500" };
       default:
-        return "text-yellow-700 bg-yellow-200";
+        return { bg: "bg-yellow-100", text: "text-yellow-700", dot: "bg-yellow-500" };
     }
   };
 
   const getServiceIcon = (service: any) => {
     const key = (service || "").toLowerCase();
+    // Handle special case for exam which might be exam_pin
+    const normalizedKey = key.includes('exam') ? 'exam' : key.includes('cable') ? 'cable' : key;
+    
     return {
-      Icon: serviceIcons[key] || Smartphone,
-      color: iconColors[key] || iconColors.default,
+      Icon: serviceIcons[normalizedKey] || Smartphone,
+      color: iconColors[normalizedKey] || iconColors.default,
     };
   };
 
@@ -169,6 +176,8 @@ export default function HistoryPage() {
 
   const renderItem = ({ item }: { item: any }) => {
     const { Icon, color } = getServiceIcon(item?.service);
+    const statusStyle = getStatusStyle(item.status);
+    
     return (
       <TouchableOpacity
         key={item?._id}
@@ -178,145 +187,260 @@ export default function HistoryPage() {
             params: { id: item?._id },
           } as never)
         }
-        className="bg-green-50 p-4 mb-3 rounded-xl border border-gray-100 shadow-sm"
+        activeOpacity={0.7}
+        className="bg-white p-4 mb-3 rounded-2xl border border-gray-100 shadow-sm mx-1"
       >
-        <View className="flex-row items-center justify-between mb-3">
-          <View className="flex-row items-center gap-4">
+        <View className="flex-row items-center justify-between mb-2">
+          <View className="flex-row items-center gap-3">
             <View
-              className="rounded-full p-2"
-              style={{ backgroundColor: color, borderRadius: 50 }}
+              className="w-10 h-10 rounded-full items-center justify-center bg-opacity-10"
+              style={{ backgroundColor: `${color}20` }}
             >
-              <Icon size={22} color="white" strokeWidth={2} />
+              <Icon size={20} color={color} strokeWidth={2.5} />
             </View>
-            <Text className="text-md text-gray-600 font-semibold capitalize">
-              {item?.service || "Transaction"}
-            </Text>
+            <View>
+                <Text className="text-base text-gray-900 font-semibold capitalize">
+                {item?.service?.replace('_', ' ') || "Transaction"}
+                </Text>
+                <Text className="text-xs text-gray-500">
+                    {getTxnDate(item).toLocaleDateString()} • {getTxnDate(item).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </Text>
+            </View>
           </View>
 
-          <View className="flex-row items-center gap-2">
-            <Text
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                item.status
-              )}`}
-            >
-              {item.status}
+          <View className="items-end">
+            <Text className="text-base font-bold text-gray-900">
+                -₦{Number(item?.amount || 0).toLocaleString()}
             </Text>
-
-            {item.status === "failed" && (
-              <Text
-                className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                  "success"
-                )}`}
-              >
-                refunded
-              </Text>
-            )}
           </View>
         </View>
 
-        <Text className="text-[1.5rem] font-bold text-gray-900">
-          ₦{Number(item?.amount || 0).toLocaleString()}
-        </Text>
+        <View className="flex-row justify-between items-center mt-2 pt-2 border-t border-gray-50">
+            <View className={`flex-row items-center gap-1.5 px-2 py-1 rounded-full ${statusStyle.bg}`}>
+                <View className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
+                <Text className={`text-xs font-medium capitalize ${statusStyle.text}`}>
+                    {item.status}
+                </Text>
+            </View>
 
-        <View className="flex-row justify-between mt-3">
-          <Text className="text-gray-700 text-md">
-            <Text className="font-semibold text-md">Prev: </Text>₦
-            {Number(item?.previous_balance || 0).toLocaleString()}
-          </Text>
-
-          <Text className="text-gray-700 text-md">
-            <Text className="font-semibold text-md">New: </Text>₦
-            {Number(item?.new_balance || 0).toLocaleString()}
-          </Text>
+            <View className="flex-row items-center gap-1">
+                <Text className="text-xs text-gray-400">Bal:</Text>
+                <Text className="text-xs text-gray-600 font-medium">₦{Number(item?.new_balance || 0).toLocaleString()}</Text>
+            </View>
         </View>
-
-        <Text className="text-gray-500 text-[11px] mt-3">
-          {getTxnDate(item).toLocaleString()}
-        </Text>
       </TouchableOpacity>
     );
   };
 
   return (
     <ApSafeAreaView>
-      <View className="pt-4">
+      <View className="pt-2 pb-2 bg-white">
         <ApHomeHeader />
       </View>
 
-      {/* Search & Filter */}
-      <View className="px-2 py-3 bg-white flex-row items-center gap-2 border-b border-gray-200">
-        <TextInput
-          placeholder="Search (service, ref, note...)"
-          onChangeText={(text) => {
-            setProductFilter(text);
-            handleProductFilter(text);
-          }}
-          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-        />
+      <View className="flex-1 bg-gray-50">
+        {/* Search & Filter Bar */}
+        <View className="px-4 py-3 bg-white flex-row items-center gap-3 shadow-sm z-10">
+            <View className="flex-1 flex-row items-center bg-gray-100 rounded-xl px-3 h-11 border border-gray-200">
+            <Search size={18} color="#9ca3af" />
+            <TextInput
+                placeholder="Search transactions..."
+                placeholderTextColor="#9ca3af"
+                onChangeText={(text) => {
+                setProductFilter(text);
+                handleProductFilter(text);
+                }}
+                className="flex-1 ml-2 text-sm text-gray-800 font-medium h-full"
+            />
+            {productFilter.length > 0 && (
+                <TouchableOpacity onPress={() => {
+                    setProductFilter("");
+                    handleProductFilter("");
+                }}>
+                    <X size={16} color="#9ca3af" />
+                </TouchableOpacity>
+            )}
+            </View>
 
-        <TouchableOpacity
-          onPress={() => setShowFilters(!showFilters)}
-          className="flex-row items-center gap-1 px-3 py-2 bg-gray-100 rounded-lg"
-        >
-          <Filter size={18} color="#555" />
-          <Text className="text-sm text-gray-700">
-            Filters {activeFiltersCount ? `• ${activeFiltersCount}` : ""}
-          </Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+            onPress={() => setShowFilters(true)}
+            className={`w-11 h-11 items-center justify-center rounded-xl border ${activeFiltersCount > 0 ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}
+            >
+            <Filter size={20} color={activeFiltersCount > 0 ? "#16a34a" : "#374151"} />
+            {activeFiltersCount > 0 && (
+                <View className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full items-center justify-center border border-white">
+                    <Text className="text-[9px] font-bold text-white">{activeFiltersCount}</Text>
+                </View>
+            )}
+            </TouchableOpacity>
+        </View>
+
+        {/* Transaction List */}
+        <FlatList
+            data={filteredTransactions}
+            keyExtractor={(item) => item._id}
+            renderItem={renderItem}
+            contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+            <View className="items-center justify-center py-20 px-10">
+                <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+                    <Receipt size={40} color="#9ca3af" />
+                </View>
+                <Text className="text-lg font-bold text-gray-800 mb-2">No Transactions Found</Text>
+                <Text className="text-sm text-gray-500 text-center leading-5">
+                    We couldn't find any transactions matching your criteria. Try adjusting your filters.
+                </Text>
+                {(activeFiltersCount > 0 || productFilter) && (
+                    <TouchableOpacity 
+                        onPress={() => {
+                            setStatusFilter("");
+                            setProductFilter("");
+                            handleProductFilter("");
+                            setDateFilter("");
+                            setTransactionTypeFilter("");
+                        }}
+                        className="mt-6 px-6 py-2.5 bg-gray-900 rounded-full"
+                    >
+                        <Text className="text-white font-semibold text-sm">Clear All Filters</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+            }
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+        />
       </View>
 
-      {/* Filters */}
-      {showFilters && (
-        <View className="bg-white px-4 py-3 border-b border-gray-200">
-          <View className="flex-row justify-between mb-2">
-            <Text className="font-semibold text-gray-700">Filter</Text>
-            <TouchableOpacity onPress={() => setShowFilters(false)}>
-              <X size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilters}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+            <View className="bg-white rounded-t-3xl h-[70%] w-full overflow-hidden">
+                <View className="flex-row items-center justify-between px-5 py-4 border-b border-gray-100">
+                    <Text className="text-lg font-bold text-gray-900">Filter Transactions</Text>
+                    <TouchableOpacity 
+                        onPress={() => setShowFilters(false)}
+                        className="w-8 h-8 items-center justify-center bg-gray-100 rounded-full"
+                    >
+                        <X size={18} color="#374151" />
+                    </TouchableOpacity>
+                </View>
+                
+                <ScrollView className="flex-1 px-5 pt-2" showsVerticalScrollIndicator={false}>
+                    {/* Status Filter */}
+                    <View className="mb-6 mt-4">
+                        <Text className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">Status</Text>
+                        <View className="flex-row flex-wrap gap-2">
+                            {["", "success", "failed", "pending"].map((status) => (
+                                <TouchableOpacity
+                                    key={status || "all"}
+                                    onPress={() => setStatusFilter(status)}
+                                    className={`px-4 py-2.5 rounded-xl border ${
+                                        statusFilter === status 
+                                        ? "bg-green-50 border-green-500" 
+                                        : "bg-white border-gray-200"
+                                    }`}
+                                >
+                                    <Text className={`text-sm font-medium capitalize ${
+                                        statusFilter === status ? "text-green-700" : "text-gray-600"
+                                    }`}>
+                                        {status || "All Status"}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
 
-          {/* Status */}
-          <FlatList
-            horizontal
-            data={["", "success", "failed", "pending"]}
-            keyExtractor={(item) => item || "all"}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => setStatusFilter(item)}
-                className={`px-4 py-1 rounded-full mr-2 ${
-                  statusFilter === item ? "bg-blue-500" : "bg-gray-200"
-                }`}
-              >
-                <Text
-                  className={`text-sm ${
-                    statusFilter === item ? "text-white" : "text-gray-700"
-                  }`}
-                >
-                  {item ? item[0].toUpperCase() + item.slice(1) : "All"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-          {/* Add other filter scrolls similarly if needed */}
+                    {/* Time Range */}
+                    <View className="mb-6">
+                        <Text className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">Time Range</Text>
+                        <View className="flex-row flex-wrap gap-2">
+                            {[
+                                { label: "All Time", value: "" },
+                                { label: "Last 7 Days", value: "7days" },
+                                { label: "Last 30 Days", value: "30days" }
+                            ].map((range) => (
+                                <TouchableOpacity
+                                    key={range.value}
+                                    onPress={() => setDateFilter(range.value)}
+                                    className={`px-4 py-2.5 rounded-xl border ${
+                                        dateFilter === range.value 
+                                        ? "bg-green-50 border-green-500" 
+                                        : "bg-white border-gray-200"
+                                    }`}
+                                >
+                                    <Text className={`text-sm font-medium ${
+                                        dateFilter === range.value ? "text-green-700" : "text-gray-600"
+                                    }`}>
+                                        {range.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+
+                    {/* Service Type */}
+                    <View className="mb-10">
+                        <Text className="text-sm font-bold text-gray-900 mb-3 uppercase tracking-wider">Service Type</Text>
+                        <View className="flex-row flex-wrap gap-2">
+                            {[
+                                { label: "All Services", value: "" },
+                                { label: "Airtime", value: "airtime" },
+                                { label: "Data", value: "data" },
+                                { label: "Electricity", value: "electricity" },
+                                { label: "Cable TV", value: "cable" },
+                                { label: "Wallet", value: "wallet" },
+                                { label: "Exam", value: "exam" },
+                            ].map((type) => (
+                                <TouchableOpacity
+                                    key={type.value}
+                                    onPress={() => setTransactionTypeFilter(type.value)}
+                                    className={`px-4 py-2.5 rounded-xl border ${
+                                        transactionTypeFilter === type.value 
+                                        ? "bg-green-50 border-green-500" 
+                                        : "bg-white border-gray-200"
+                                    }`}
+                                >
+                                    <Text className={`text-sm font-medium ${
+                                        transactionTypeFilter === type.value ? "text-green-700" : "text-gray-600"
+                                    }`}>
+                                        {type.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </ScrollView>
+
+                <View className="p-5 border-t border-gray-100 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                    <View className="flex-row gap-3">
+                        <TouchableOpacity 
+                            onPress={() => {
+                                setStatusFilter("");
+                                setDateFilter("");
+                                setTransactionTypeFilter("");
+                            }}
+                            className="flex-1 py-3.5 rounded-xl bg-gray-100 items-center"
+                        >
+                            <Text className="text-gray-700 font-semibold">Reset</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            onPress={() => setShowFilters(false)}
+                            className="flex-[2] py-3.5 rounded-xl bg-green-600 items-center shadow-sm shadow-green-200"
+                        >
+                            <Text className="text-white font-bold">Apply Filters</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
         </View>
-      )}
-
-      {/* Transaction List */}
-      <FlatList
-        data={filteredTransactions}
-        keyExtractor={(item) => item._id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingVertical: 16 }}
-        ListEmptyComponent={
-          <View className="items-center py-10">
-            <Receipt size={50} color="#bbb" />
-            <Text className="text-gray-400 mt-3">No Transactions Found</Text>
-          </View>
-        }
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-      />
+      </Modal>
     </ApSafeAreaView>
   );
 }

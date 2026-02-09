@@ -85,6 +85,8 @@ export default function AirtimeScreen() {
   const [selectedNetwork, setSelectedNetwork] = useState(networks[0]);
   const [pinVisible, setPinVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pinCode, setPinCode] = useState("");
+  const [details, setDetails] = useState<any[]>([]);
 
   const { user } = useSelector((state: RootState) => state.auth);
   const { dataServices } = useSelector(
@@ -115,28 +117,27 @@ export default function AirtimeScreen() {
     }, [dispatch])
   );
 
-  // HANDLE AIRTIME SUBMIT (SEPARATED)
-  const handleAirtimeSubmit = async (
-    values: any,
-    setFieldValue: (field: string, value: any) => void
-  ) => {
-    setLoading(true);
-
+  const handleAirtimeSubmit = async (values: any, enteredPin: string) => {
+    if (!values.amount || !values.phone) {
+      showToast("Please enter phone and amount", "error");
+      return;
+    }
+    if (!enteredPin || enteredPin.length !== 4) {
+      showToast("Please enter a valid 4-digit PIN", "error");
+      return;
+    }
     const payload = {
       ...values,
       networkId: selectedNetwork.name.replace(/\s+.*/, "").toUpperCase(),
       userId: user?._id,
       amount: Number(values.amount),
+      pinCode: enteredPin,
     };
-
-    console.log(payload);
-
     try {
+      setLoading(true);
       const result = await dispatch(purchaseAirtime(payload as any));
-
       if (purchaseAirtime.fulfilled.match(result)) {
         showToast("Airtime purchase successful!", "success");
-
         router.push({
           pathname: "/(protected)/history/[id]",
           params: { id: result.payload.transactionId },
@@ -154,8 +155,8 @@ export default function AirtimeScreen() {
       }
     } finally {
       setLoading(false);
-      setPinVisible(false);
-      setFieldValue("pinCode", ""); // Clear PIN
+      // setPinVisible(false);
+      setPinCode("");
     }
   };
 
@@ -174,10 +175,19 @@ export default function AirtimeScreen() {
 
         {/* FORM */}
         <Formik
-          initialValues={{ amount: "", phone: "", pinCode: "" }}
+          initialValues={{ amount: "", phone: "" }}
           validationSchema={schema}
-          onSubmit={(values, { setFieldValue }) => {
-            handleAirtimeSubmit(values, setFieldValue);
+          onSubmit={(values) => {
+            if (!values.amount || !values.phone) {
+              showToast("Please enter phone and amount", "error");
+              return;
+            }
+            setDetails([
+              { label: "Network", value: selectedNetwork.name },
+              { label: "Phone Number", value: values.phone },
+              { label: "Amount", value: `₦${values.amount}` },
+            ]);
+            setPinVisible(true);
           }}
         >
           {({ handleSubmit, values, setFieldValue, errors, touched }) => (
@@ -208,8 +218,13 @@ export default function AirtimeScreen() {
                           : "bg-gray-50 border-gray-200"
                       }`}
                       onPress={() => {
-                        setFieldValue("amount", item.value),
-                          setPinVisible(true);
+                        setFieldValue("amount", item.value);
+                        setDetails([
+                          { label: "Network", value: selectedNetwork.name },
+                          { label: "Phone Number", value: values.phone },
+                          { label: "Amount", value: `₦${item.value}` },
+                        ]);
+                        setPinVisible(true);
                       }}
                     >
                       <Text className="text-xs text-green-600 text-center">
@@ -233,29 +248,23 @@ export default function AirtimeScreen() {
                 <Text className="text-red-500 mt-1">{errors.amount}</Text>
               )}
 
-              {/* PROCEED BUTTON → open PIN modal */}
+              {/* PROCEED BUTTON */}
               <View className="px-4 mt-4 mb-8">
                 <ApButton
                   title="Proceed to Pay"
-                  onPress={() => {
-                    if (!values.amount || !values.phone) {
-                      showToast("Please enter phone and amount", "error");
-                      return;
-                    }
-                    setPinVisible(true);
-                  }}
-                  loading={loading}
+                  onPress={handleSubmit as any}
+                  disabled={loading}
                 />
               </View>
-
-              {/* PIN MODAL (Blocks API until PIN entered) */}
               <PinModal
                 visible={pinVisible}
                 onClose={() => setPinVisible(false)}
                 loading={loading}
+                title="Review Airtime Purchase"
+                details={details}
                 onSubmit={(pin) => {
-                  setFieldValue("pinCode", pin); // Save PIN
-                  handleSubmit(); // Submit the API
+                  setPinCode(pin);
+                  handleAirtimeSubmit(values, pin);
                 }}
               />
             </>

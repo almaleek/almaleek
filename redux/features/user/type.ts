@@ -11,6 +11,7 @@ export interface User {
   bonus: number;
   referralCode: string;
   pinStatus: boolean;
+  role:string;
   account?: {
     bankName: string;
     accountNumber: string;

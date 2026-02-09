@@ -19,7 +19,7 @@ export default function SignInScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const { showToast } = useToast();
 
-  const handleSubmit = async (values: any, { setSubmitting }) => {
+  const handleSubmit = async (values: any, { setSubmitting }:any) => {
     try {
       const resultAction = await dispatch(
         loginUser({ email: values.email, password: values.password })
@@ -62,69 +62,65 @@ export default function SignInScreen() {
           onSubmit={handleSubmit}
         >
           {({ handleSubmit, isSubmitting }) => (
-            <View className="flex-1 justify-center ">
-              {/* Logo */}
-              <View className="items-center mb-6">
-                <Image
-                  source={require("@/assets/images/logo.png")} // <-- replace with your logo path
-                  className="w-24 h-24"
-                  resizeMode="contain"
+            <View className="flex-1 bg-gray-50 justify-center">
+              <View className="mx-2 mb-8 bg-white rounded-2xl p-6 shadow-xl">
+                <View className="items-center mb-6">
+                  <Image
+                    source={require("@/assets/images/logo.png")}
+                    className="w-24 h-24"
+                    resizeMode="contain"
+                  />
+                  <Text className="mt-4 text-2xl font-extrabold text-gray-900 text-center">
+                    Welcome Back
+                  </Text>
+                  <Text className="text-gray-500 mt-1 text-center">
+                    Sign in to continue
+                  </Text>
+                </View>
+
+                <ApTextInput
+                  name="email"
+                  label="Email"
+                  placeholder="Enter your email"
+                  icon={<Mail size={20} />}
+                  keyboardType="email-address"
                 />
-                <Text className="mt-4 text-2xl font-bold text-gray-800">
-                  Welcome Back!
-                </Text>
-                <Text className="text-gray-500 mt-1 text-center">
-                  Sign in to your account to continue
-                </Text>
-              </View>
 
-              {/* Email Input */}
-              <ApTextInput
-                name="email"
-                label="Email"
-                placeholder="Enter your email"
-                icon={<Mail size={20} />}
-                keyboardType="email-address"
-              />
+                <ApTextInput
+                  name="password"
+                  label="Password"
+                  placeholder="Enter your password"
+                  isPassword
+                  icon={<Lock size={20} />}
+                />
 
-              {/* Password Input */}
-              <ApTextInput
-                name="password"
-                label="Password"
-                placeholder="Enter your password"
-                isPassword
-                icon={<Lock size={20} />}
-              />
-
-              {/* Forgotten Password */}
-              <TouchableOpacity
-                className="mb-4 mt-1 self-end"
-                onPress={() => {
-                  router.push("/(auth)/forgottenpassword");
-                }}
-              >
-                <Text className="text-blue-600 font-medium">
-                  Forgot Password?
-                </Text>
-              </TouchableOpacity>
-
-              {/* Login Button */}
-              <ApButton
-                title="Login"
-                loading={isSubmitting}
-                onPress={handleSubmit as any}
-              />
-
-              {/* Optional Signup Link */}
-              <View className="mt-6 flex-row justify-center">
-                <Text className="text-gray-500">Don't have an account? </Text>
                 <TouchableOpacity
+                  className="mb-4 mt-1 self-end"
                   onPress={() => {
-                    router.push("/(auth)/signup");
+                    router.push("/(auth)/forgottenpassword");
                   }}
                 >
-                  <Text className="text-blue-600 font-medium">Sign Up</Text>
+                  <Text className="text-gray-600 font-semibold">Forgot Password?</Text>
                 </TouchableOpacity>
+
+                <ApButton
+                  title="Login"
+                  loading={isSubmitting}
+                  onPress={handleSubmit as any}
+                />
+              </View>
+
+              <View className="px-4">
+                <View className="flex-row justify-center">
+                  <Text className="text-gray-600">Don't have an account? </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      router.push("/(auth)/signup");
+                    }}
+                  >
+                    <Text className="text-gray-600 font-semibold">Sign Up</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}

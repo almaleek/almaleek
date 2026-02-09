@@ -30,6 +30,7 @@ import MainLoader from "@/components/loaders/mainloader";
 import { router } from "expo-router";
 import BannerCarousel from "@/components/carousel/banner";
 import PinModal from "@/components/modals/pinModal";
+import { useToast } from "@/components/toast/toastProvider";
 
 const TransferSchema = Yup.object().shape({
   bankCode: Yup.string().required("Bank is required"),
@@ -62,6 +63,7 @@ export default function TransferScreen() {
     transferError,
   } = useSelector((state: RootState) => state.remita);
   const { user } = useSelector((state: RootState) => state.auth);
+  const {showToast} = useToast();
 
   const [bankModalVisible, setBankModalVisible] = useState(false);
   const [selectedBank, setSelectedBank] = useState<any>(null);
@@ -72,6 +74,8 @@ export default function TransferScreen() {
   const [step, setStep] = useState<1 | 2>(1);
   const [pinVisible, setPinVisible] = useState(false);
   const [pinCode, setPinCode] = useState("");
+  const [details, setDetails] = useState<any[]>([]);
+  const [pendingValues, setPendingValues] = useState<any>(null);
   const amountlists = [
     { label: "₦1,000", value: "1000" },
     { label: "₦2,000", value: "2000" },
@@ -124,7 +128,6 @@ export default function TransferScreen() {
       }
     } else if (transferError && !handledOnceRef.current) {
       handledOnceRef.current = true;
-      Alert.alert("Error", transferError?.message || "Transfer failed");
       dispatch(clearTransfer());
       handledOnceRef.current = false;
     }
@@ -167,25 +170,55 @@ export default function TransferScreen() {
     }, 400);
   };
 
-  const handleTransfer = (values: any) => {
-    if (!enquiryResult?.accountNumber) {
-      Alert.alert("Error", "Please verify account details first");
-      return;
-    }
+const handleTransfer = async (values: any, enteredPin: string) => {
+  if (!enquiryResult?.accountNumber) {
+    showToast("Please verify account details first", "error");
+    return;
+  }
 
-    const payload = {
-      destinationBankCode: values.bankCode,
-      destinationAccountNumber: values.accountNumber,
-      destinationAccountName: enquiryResult.nameOnAccount,
-      amount: Number(values.amount),
-      transactionDescription: values.narration,
-      paymentIdentifier: `TXN-${Date.now()}`, // Generate a unique ID
-      userId: user?._id,
-      pinCode,
-    };
+  if (!enteredPin || enteredPin.length !== 4) {
+    showToast("Enter a valid 4-digit PIN", "error");
+    return;
+  }
 
-    dispatch(initiateTransfer(payload));
+  const payload = {
+    destinationBankCode: values.bankCode,
+    destinationAccountNumber: values.accountNumber,
+    destinationAccountName: enquiryResult.nameOnAccount,
+    amount: Number(values.amount),
+    transactionDescription: values.narration,
+    paymentIdentifier: `TXN-${Date.now()}`,
+    userId: user?._id,
+    pinCode: enteredPin,
   };
+
+  try {
+    const result = await dispatch(initiateTransfer(payload));
+
+    if (initiateTransfer.fulfilled.match(result)) {
+      router.push({
+        pathname: "/(protected)/history/[id]",
+        params: { id: result.payload.transactionId },
+      });
+    } else {
+      const transactionId = (result.payload as any)?.transactionId;
+      if (transactionId) {
+        router.push({
+          pathname: "/(protected)/history/[id]",
+          params: { id: transactionId },
+        });
+      } else {
+        showToast((result.payload as any)?.error || "Transfer failed", "error");
+      }
+    }
+  } finally {
+    setPinVisible(false);
+    setPinCode("");
+    dispatch(clearTransfer());
+    dispatch(clearEnquiry());
+  }
+};
+
 
   return (
     <ApSafeAreaView>
@@ -205,7 +238,7 @@ export default function TransferScreen() {
                 narration: "",
               }}
               validationSchema={TransferSchema}
-              onSubmit={handleTransfer}
+              onSubmit={handleTransfer as any}
             >
               {({
                 handleChange,
@@ -238,7 +271,7 @@ export default function TransferScreen() {
                         keyboardType="numeric"
                         maxLength={10}
                         onChange={(text) =>
-                          handleAccountChange(text, setFieldValue, values)
+                          handleAccountChange(text as any, setFieldValue, values)
                         }
                         loading={enquiryLoading}
                       />
@@ -372,6 +405,14 @@ export default function TransferScreen() {
                             Alert.alert("Error", "Please verify account details first");
                             return;
                           }
+                          setPendingValues(values);
+                          setDetails([
+                            { label: "Bank", value: selectedBank?.bankName || values.bankCode },
+                            { label: "Account Number", value: values.accountNumber },
+                            { label: "Account Name", value: enquiryResult.nameOnAccount },
+                            { label: "Amount", value: `₦${Number(values.amount).toLocaleString()}` },
+                            { label: "Narration", value: values.narration },
+                          ]);
                           setPinVisible(true);
                         }}
                         loading={transferLoading}
@@ -443,24 +484,27 @@ export default function TransferScreen() {
                       />
                     </View>
                   </Modal>
-
-                  <PinModal
-                    visible={pinVisible}
-                    loading={transferLoading}
-                    onClose={() => {
-                      if (!transferLoading) setPinVisible(false);
-                    }}
-                    onSubmit={(pin) => {
-                      setPinCode(pin);
-                      setPinVisible(false);
-                      handleSubmit();
-                    }}
-                  />
                 </View>
               )}}
             </Formik>
 
           </View>
+          {/* PIN Modal within Formik values scope */}
+          <PinModal
+            visible={pinVisible}
+            loading={transferLoading}
+            title="Review Transfer"
+            details={details}
+            onClose={() => {
+              if (!transferLoading) setPinVisible(false);
+            }}
+            onSubmit={(pin) => {
+              setPinCode(pin);
+              if (pendingValues) {
+                handleTransfer(pendingValues, pin);
+              }
+            }}
+          />
            <BannerCarousel
           images={banners}
           heightRatio={0.25}

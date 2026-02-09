@@ -1,13 +1,20 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { currentUser, loginUser, signUpUser } from "./userThunk";
+import { currentUser, loginUser, signUpUser, getReferralStats } from "./userThunk";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { User } from "./type";
+
+interface ReferralStats {
+  totalEarnings: number;
+  totalReferrals: number;
+  referrals: any[];
+}
 
 interface AuthState {
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
+  referralStats: ReferralStats | null;
   loading: boolean;
   error: string | null;
 }
@@ -16,6 +23,7 @@ const initialState: AuthState = {
   user: null,
   accessToken: null,
   refreshToken: null,
+  referralStats: null,
   loading: false,
   error: null,
 };
@@ -87,6 +95,20 @@ const authSlice = createSlice({
         state.loading = false;
       })
       .addCase(currentUser.rejected, (state, action) => {
+        state.error = action.payload as string;
+        state.loading = false;
+      })
+
+      // REFERRAL STATS
+      .addCase(getReferralStats.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getReferralStats.fulfilled, (state, action: PayloadAction<any>) => {
+        state.referralStats = action.payload;
+        state.loading = false;
+      })
+      .addCase(getReferralStats.rejected, (state, action) => {
         state.error = action.payload as string;
         state.loading = false;
       });

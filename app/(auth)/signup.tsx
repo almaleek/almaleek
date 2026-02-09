@@ -90,23 +90,22 @@ export default function SignupForm() {
           onSubmit={handleSubmit}
         >
           {({ handleSubmit, isSubmitting }) => (
-            <View className="flex-1 justify-center ">
-              {/* Logo + Title */}
-              <View className="items-center mb-10 ">
-                <Image
-                  source={require("@/assets/images/logo.png")} // replace with your logo
-                  className="w-24 h-24"
-                  resizeMode="contain"
-                />
-                <Text className="mt-4 text-2xl font-bold text-gray-800">
-                  Create Account
-                </Text>
-                <Text className="text-gray-500 mt-1 text-center">
-                  Fill in the details to get started
-                </Text>
-              </View>
+            <View className="flex-1 bg-gray-50 justify-center">
+              <View className="mx-2 mb-8 bg-white rounded-2xl p-6 shadow-xl">
+                <View className="items-center mb-6">
+                  <Image
+                    source={require("@/assets/images/logo.png")}
+                    className="w-24 h-24"
+                    resizeMode="contain"
+                  />
+                  <Text className="mt-4 text-2xl font-extrabold text-gray-900">
+                    Create Account
+                  </Text>
+                  <Text className="text-gray-500 mt-1 text-center">
+                    Fill in the details to get started
+                  </Text>
+                </View>
 
-              {/* Step 1: Personal Info */}
               {step === 1 && (
                 <>
                   <ApTextInput
@@ -143,7 +142,6 @@ export default function SignupForm() {
                     variant="primary"
                     title="Next"
                     onPress={() => setStep(2)}
-                    // className="mt-4"
                   />
 
                   <View className="mt-6 flex-row justify-center">
@@ -155,13 +153,12 @@ export default function SignupForm() {
                         router.push("/(auth)/signin");
                       }}
                     >
-                      <Text className="text-blue-600 font-medium">Sign In</Text>
+                      <Text className="text-gray-600 font-semibold">Sign In</Text>
                     </TouchableOpacity>
                   </View>
                 </>
               )}
 
-              {/* Step 2: Security Info */}
               {step === 2 && (
                 <>
                   <ApTextInput
@@ -203,6 +200,7 @@ export default function SignupForm() {
                   </View>
                 </>
               )}
+              </View>
             </View>
           )}
         </Formik>

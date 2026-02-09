@@ -1,18 +1,31 @@
 import React from "react";
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch } from "@/redux/store";
+import { AppDispatch, RootState } from "@/redux/store";
 import { useRouter } from "expo-router";
-import ApHomeHeader from "@/components/headers/homeheader"; // adjust if needed
+import ApHomeHeader from "@/components/headers/homeheader";
 import { logout } from "@/redux/features/user/userSlice";
-import AppSafeAreaView from "@/components/safeAreaView/safeAreaView";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
 import { useToast } from "@/components/toast/toastProvider";
+import { 
+  Lock, 
+  KeyRound, 
+  Contact, 
+  LogOut, 
+  ChevronRight, 
+  User, 
+  ShieldCheck, 
+  HeadphonesIcon,
+  Bell,
+  HelpCircle,
+  FileText
+} from "lucide-react-native";
 
 export default function Profile() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const { showToast } = useToast();
+  const { user } = useSelector((state: RootState) => state.auth);
 
   const handleLogout = async () => {
     try {
@@ -24,56 +37,130 @@ export default function Profile() {
     }
   };
 
-  const menuItems = [
+  const sections = [
     {
-      id: "1",
-      icon: "🔒",
-      label: "Password Update",
-      href: "/(protected)/updatepassword",
+      title: "Security",
+      items: [
+        {
+          id: "1",
+          icon: Lock,
+          label: "Change Password",
+          href: "/(protected)/updatepassword",
+          color: "#3b82f6" // blue
+        },
+        {
+          id: "2",
+          icon: KeyRound,
+          label: "Transaction PIN",
+          href: "/(protected)/updatepin",
+          color: "#8b5cf6" // violet
+        },
+      ]
     },
     {
-      id: "2",
-      icon: "🔢",
-      label: "Pin Update",
-      href: "/(protected)/updatepin",
-    },
-    {
-      id: "3",
-      icon: "📇",
-      label: "Contacts",
-      href: "/(protected)/contact",
-    },
-    {
-      id: "4",
-      icon: "🚪",
-      label: "Logout",
-      action: handleLogout,
-    },
+      title: "Support & Legal",
+      items: [
+        {
+          id: "3",
+          icon: HeadphonesIcon,
+          label: "Contact Support",
+          href: "/(protected)/contact",
+          color: "#10b981" // emerald
+        },
+        // {
+        //   id: "4",
+        //   icon: HelpCircle,
+        //   label: "FAQs",
+        //   href: "/(protected)/faqs",
+        //   color: "#f59e0b" // amber
+        // },
+        // {
+        //   id: "5",
+        //   icon: FileText,
+        //   label: "Terms & Privacy",
+        //   href: "/(protected)/terms",
+        //   color: "#6b7280" // gray
+        // },
+      ]
+    }
   ];
 
   return (
     <ApSafeAreaView>
-      <View className="pt-4">
+      <View className="pt-2 pb-2 bg-white">
         <ApHomeHeader />
       </View>
 
-      <View className="bg-white shadow-lg rounded-xl  px-4 mt-2">
-        {menuItems.map((item, index) => (
-          <TouchableOpacity
-            key={item.id}
-            onPress={() => {
-              if (item.action) return item.action();
-              router.push(item.href as any);
-            }}
-            className={`flex-row items-center py-4 border-b border-gray-200 ${
-              index === menuItems.length - 1 ? "border-b-0" : ""
-            }`}
-          >
-            <Text className="text-2xl">{item.icon}</Text>
-            <Text className="ml-4 text-lg text-gray-800">{item.label}</Text>
-          </TouchableOpacity>
+      <ScrollView className="flex-1 bg-gray-50 px-4 pt-6" showsVerticalScrollIndicator={false}>
+        {/* Profile Card */}
+        <View className="bg-white rounded-3xl p-6 shadow-sm shadow-gray-200 mb-8 items-center border border-gray-100">
+          <View className="w-24 h-24 bg-green-100 rounded-full items-center justify-center mb-4 border-4 border-white shadow-sm">
+             <Text className="text-3xl font-bold text-green-700">
+               {user?.firstName?.[0]}{user?.lastName?.[0]}
+             </Text>
+          </View>
+          <Text className="text-xl font-bold text-gray-900 mb-1">
+            {user?.firstName} {user?.lastName}
+          </Text>
+          <Text className="text-sm text-gray-500 font-medium mb-4">
+            {user?.email}
+          </Text>
+          <View className="flex-row gap-3">
+             <View className="px-3 py-1 bg-green-50 rounded-full border border-green-100">
+                <Text className="text-xs font-semibold text-green-700 capitalize">{user?.role || 'User'}</Text>
+             </View>
+             {user?.phone && (
+               <View className="px-3 py-1 bg-gray-50 rounded-full border border-gray-100">
+                  <Text className="text-xs font-semibold text-gray-600">{user?.phone}</Text>
+               </View>
+             )}
+          </View>
+        </View>
+
+        {/* Menu Sections */}
+        {sections.map((section, idx) => (
+          <View key={idx} className="mb-6">
+            <Text className="text-sm font-bold text-gray-900 mb-3 ml-1 uppercase tracking-wider opacity-60">
+              {section.title}
+            </Text>
+            <View className="bg-white rounded-2xl overflow-hidden shadow-sm shadow-gray-100 border border-gray-100">
+              {section.items.map((item, index) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => router.push(item.href as any)}
+                  className={`flex-row items-center p-4 active:bg-gray-50 ${
+                    index !== section.items.length - 1 ? "border-b border-gray-50" : ""
+                  }`}
+                >
+                  <View 
+                    className="w-10 h-10 rounded-full items-center justify-center mr-4"
+                    style={{ backgroundColor: `${item.color}15` }}
+                  >
+                    <item.icon size={20} color={item.color} strokeWidth={2} />
+                  </View>
+                  <Text className="flex-1 text-base font-semibold text-gray-800">
+                    {item.label}
+                  </Text>
+                  <ChevronRight size={20} color="#d1d5db" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         ))}
-      </View>
+
+        {/* Logout Button */}
+        <TouchableOpacity
+          onPress={handleLogout}
+          className="flex-row items-center justify-center bg-red-50 p-4 rounded-2xl mb-12 border border-red-100 active:bg-red-100"
+        >
+          <LogOut size={20} color="#ef4444" className="mr-2" />
+          <Text className="text-base font-bold text-red-600">Log Out</Text>
+        </TouchableOpacity>
+
+        <View className="items-center mb-10">
+          <Text className="text-xs text-gray-400">Version 1.0.0</Text>
+        </View>
+      </ScrollView>
     </ApSafeAreaView>
   );
 }
