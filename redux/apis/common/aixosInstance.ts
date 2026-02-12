@@ -2,7 +2,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 
-const API_URL = "http://10.182.205.142:5000/api";
+const API_URL = "http://10.33.74.142:5000/api";
 
 let isRefreshing = false;
 let subscribers: ((token: string) => void)[] = [];
@@ -83,6 +83,7 @@ axiosInstance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {
+        console.error("Token refresh failed:", refreshError);
         // 🔥 Refresh failed → logout
         if (logoutHandler) logoutHandler();
         return Promise.reject(refreshError);

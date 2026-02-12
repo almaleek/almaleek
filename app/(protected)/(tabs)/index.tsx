@@ -36,69 +36,11 @@ import {
   Gift,
   LayoutGrid,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  ShieldCheck
 } from "lucide-react-native";
 
 const { width } = Dimensions.get('window');
-
-const actions = [
-  {
-    id: 6,
-    icon: <Send size={22} color="#fff" />,
-    bg: "bg-red-500",
-    label: "Send",
-    link: "(protected)/(services)/transfer",
-  },
-  {
-    id: 1,
-    icon: <Phone size={22} color="#fff" />,
-    bg: "bg-blue-500",
-    label: "Airtime",
-    link: "(protected)/(services)/airtime",
-  },
-  {
-    id: 2,
-    icon: <Wifi size={22} color="#fff" />,
-    bg: "bg-emerald-500",
-    label: "Data",
-    link: "(protected)/(services)/data",
-  },
-  {
-    id: 3,
-    icon: <Bolt size={22} color="#fff" />,
-    bg: "bg-yellow-500",
-    label: "Electricity",
-    link: "(protected)/(services)/electricity",
-  },
-  {
-    id: 4,
-    icon: <GraduationCap size={22} color="#fff" />,
-    bg: "bg-indigo-500",
-    label: "Exam",
-    link: "(protected)/(services)/exam",
-  },
-  {
-    id: 5,
-    icon: <Tv2 size={22} color="#fff" />,
-    bg: "bg-orange-500",
-    label: "TV",
-    link: "(protected)/(services)/cable",
-  },
-  {
-    id: 7,
-    icon: <Gift size={22} color="#fff" />,
-    bg: "bg-purple-500",
-    label: "Reward",
-    link: "(protected)/(tabs)/reward",
-  },
-  {
-    id: 8,
-    icon: <LayoutGrid size={22} color="#fff" />,
-    bg: "bg-slate-600",
-    label: "More",
-    link: "(protected)/(tabs)/profile",
-  },
-];
 
 const STATUS_ICONS: Record<string, any> = {
   success: <CheckCircle className="text-green-500 w-5 h-5" />,
@@ -186,6 +128,65 @@ export default function HomePage() {
   const [showBalance, setShowBalance] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const toggleBalance = () => setShowBalance(!showBalance);
+
+  const actions = [
+    {
+      id: 6,
+      icon: <Send size={22} color="#fff" />,
+      bg: "bg-red-500",
+      label: "Send",
+      link: "(protected)/(services)/transfer",
+    },
+    {
+      id: 1,
+      icon: <Phone size={22} color="#fff" />,
+      bg: "bg-blue-500",
+      label: "Airtime",
+      link: "(protected)/(services)/airtime",
+    },
+    {
+      id: 2,
+      icon: <Wifi size={22} color="#fff" />,
+      bg: "bg-emerald-500",
+      label: "Data",
+      link: "(protected)/(services)/data",
+    },
+    {
+      id: 3,
+      icon: <Bolt size={22} color="#fff" />,
+      bg: "bg-yellow-500",
+      label: "Electricity",
+      link: "(protected)/(services)/electricity",
+    },
+    {
+      id: 4,
+      icon: <GraduationCap size={22} color="#fff" />,
+      bg: "bg-indigo-500",
+      label: "Exam",
+      link: "(protected)/(services)/exam",
+    },
+    {
+      id: 5,
+      icon: <Tv2 size={22} color="#fff" />,
+      bg: "bg-orange-500",
+      label: "TV",
+      link: "(protected)/(services)/cable",
+    },
+    {
+      id: 7,
+      icon: user?.role === "agent" ? <ShieldCheck size={22} color="#fff" /> : <Gift size={22} color="#fff" />,
+      bg: "bg-purple-500",
+      label: user?.role === "agent" ? "Admin" : "Reward",
+      link: "(protected)/(tabs)/reward",
+    },
+    {
+      id: 8,
+      icon: <LayoutGrid size={22} color="#fff" />,
+      bg: "bg-slate-600",
+      label: "More",
+      link: "(protected)/(tabs)/profile",
+    },
+  ];
 
   const bannerImages = [
     require("@/assets/images/banner1.png"),

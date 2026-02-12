@@ -2,13 +2,17 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { HapticTab } from "@/components/haptic-tab";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Home, Clock, Gift, User } from "lucide-react-native";
+import { Home, Clock, Gift, User, ShieldCheck } from "lucide-react-native";
 import { View, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets(); // safe area for bottom navigation
+  const { user } = useSelector((state: RootState) => state.auth);
+  const isAgent = user?.role === "agent";
 
   const greenText = "#16a34a"; // text-green-600
   const greenBg = "#dcfce7"; // light green background
@@ -16,7 +20,11 @@ export default function TabLayout() {
   const tabs = [
     { name: "index", title: "Home", icon: Home },
     { name: "history", title: "History", icon: Clock },
-    { name: "reward", title: "Reward", icon: Gift },
+    { 
+      name: "reward", 
+      title: isAgent ? "Admin" : "Reward", 
+      icon: isAgent ? ShieldCheck : Gift 
+    },
     { name: "profile", title: "Profile", icon: User },
   ];
 

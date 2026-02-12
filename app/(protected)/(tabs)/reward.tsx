@@ -3,16 +3,17 @@ import { View, Text, TouchableOpacity, Alert, Share, ScrollView, RefreshControl,
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import * as Clipboard from "expo-clipboard";
-import { useRouter } from "expo-router";
 import ApHomeHeader from "@/components/headers/homeheader";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
-import { getReferralStats } from "@/redux/features/user/userThunk";
-import { Users, CreditCard, ChevronRight } from "lucide-react-native";
+import { getReferralStats, withdrawBonus } from "@/redux/features/user/userThunk";
+import { Phone } from "lucide-react-native";
+import { useToast } from "@/components/toast/toastProvider";
 
 export default function Reward() {
   const { user, referralStats, loading } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
   const [refreshing, setRefreshing] = useState(false);
+  const { showToast } = useToast();
 
   const referralCode = user?.referralCode || "N/A";
   const referralLink = `https://www.almaleek.com.ng/auth/signup?ref=${referralCode}`;
@@ -50,8 +51,23 @@ export default function Reward() {
     }
   };
 
+  const handleWithdraw = async () => {
+    try {
+      await dispatch(withdrawBonus()).unwrap();
+      showToast(
+        "Withdrawal request submitted.",
+);
+      fetchStats();
+    } catch (error) {
+      showToast(
+        "Failed to submit withdrawal request.",
+        "Error"
+
+      );   
+    }
+  };
+
   const isAgent = user?.role === "agent";
-  console.log(user?.role, "the role")
 
   return (
     <ApSafeAreaView>
@@ -64,30 +80,63 @@ export default function Reward() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View className="bg-white shadow-sm rounded-xl p-5 mb-4 border border-gray-100">
-          <Text className="text-xl font-bold text-gray-800">Refer & Earn</Text>
+          <Text className="text-xl font-bold text-gray-800">{isAgent ? "Agent Dashboard" : "Refer & Earn"}</Text>
           <Text className="text-gray-500 mt-1">
             {isAgent 
-              ? "Earn commissions on every transaction from your referrals." 
+              ? "Overview of your performance and referrals." 
               : "Invite friends and earn a bonus when they sign up."}
           </Text>
 
           {/* Stats Cards */}
           <View className="flex-row gap-3 mt-6">
             <View className="flex-1 bg-blue-50 p-4 rounded-xl border border-blue-100 items-center">
-              <Text className="text-gray-500 text-xs font-medium uppercase">Total Referrals</Text>
+              <Text className="text-gray-500 text-xs font-medium uppercase text-center">Total Referrals</Text>
               <Text className="text-2xl font-bold text-blue-700 mt-1">
                 {referralStats?.totalReferrals || 0}
               </Text>
             </View>
             <View className="flex-1 bg-green-50 p-4 rounded-xl border border-green-100 items-center">
-              <Text className="text-gray-500 text-xs font-medium uppercase">
+              <Text className="text-gray-500 text-xs font-medium uppercase text-center">
                 {isAgent ? "Total Commission" : "Total Bonus"}
               </Text>
               <Text className="text-2xl font-bold text-green-700 mt-1">
-                ₦{referralStats?.totalEarnings || 0}
+                ₦{referralStats?.totalEarnings?.toLocaleString() || 0}
               </Text>
+              {(referralStats?.totalEarnings || 0) > 0 && (
+                <TouchableOpacity 
+                  onPress={handleWithdraw}
+                  className="mt-2 bg-green-100 px-3 py-1 rounded-full"
+                >
+                  <Text className="text-green-700 text-xs font-bold">Withdraw</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
+          
+          {isAgent && (
+            <>
+              <View className="flex-row gap-3 mt-3">
+                <View className="flex-1 bg-orange-50 p-4 rounded-xl border border-orange-100 items-center">
+                  <Text className="text-gray-500 text-xs font-medium uppercase text-center">
+                    Ref Transactions
+                  </Text>
+                  <Text className="text-xl font-bold text-orange-700 mt-1">
+                    {referralStats?.totalReferralTransactionCount || 0}
+                  </Text>
+                </View>
+
+                <View className="flex-1 bg-indigo-50 p-4 rounded-xl border border-indigo-100 items-center">
+                  <Text className="text-gray-500 text-xs font-medium uppercase text-center">
+                    Claim Bonus Count
+                  </Text>
+                  <Text className="text-2xl font-bold text-indigo-700 mt-1">
+                    {referralStats?.claimBonusCount || 0}
+                  </Text>
+                </View>
+              </View>
+
+            </>
+          )}
         </View>
 
         {/* Referral Code Section */}
@@ -111,24 +160,45 @@ export default function Reward() {
 
         {/* Recent Referrals List */}
         <View className="mb-8">
-          <Text className="text-lg font-bold text-gray-800 mb-3">Recent Referrals</Text>
+          <Text className="text-lg font-bold text-gray-800 mb-3">{isAgent ? "Referrals" : "Recent Referrals"}</Text>
           {referralStats?.referrals && referralStats.referrals.length > 0 ? (
             referralStats.referrals.map((ref: any, index: number) => (
-              <View key={index} className="bg-white p-4 rounded-xl mb-2 flex-row items-center justify-between shadow-sm border border-gray-50">
-                <View className="flex-row items-center gap-3">
-                  <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center">
-                    <Text className="text-gray-600 font-bold text-sm">
-                      {ref.email?.charAt(0).toUpperCase() || "U"}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className="font-semibold text-gray-800">{ref.email}</Text>
-                    <Text className="text-xs text-gray-400">Joined recently</Text>
-                  </View>
+              <View key={index} className="bg-white p-4 rounded-xl mb-2 shadow-sm border border-gray-50">
+                <View className="flex-row items-center justify-between mb-2">
+                    <View className="flex-row items-center gap-3">
+                        <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center">
+                            <Text className="text-gray-600 font-bold text-sm">
+                            {(ref.firstName || ref.email)?.charAt(0).toUpperCase() || "U"}
+                            </Text>
+                        </View>
+                        <View>
+                            <Text className="font-semibold text-gray-800">
+                              {isAgent ? `${ref.firstName} ${ref.lastName}` : ref.email}
+                            </Text>
+                            <Text className="text-xs text-gray-400">
+                              {isAgent ? ref.email : "Joined recently"}
+                            </Text>
+                        </View>
+                    </View>
+                    <View className="bg-green-100 px-2 py-1 rounded">
+                        <Text className="text-green-700 text-xs font-bold">
+                           {isAgent ? new Date(ref.createdAt).toLocaleDateString() : "Active"}
+                        </Text>
+                    </View>
                 </View>
-                <View className="bg-green-100 px-2 py-1 rounded">
-                  <Text className="text-green-700 text-xs font-bold">Active</Text>
-                </View>
+                
+                {isAgent && (
+                    <View className="flex-row justify-between items-center mt-2 pt-2 border-t border-gray-100">
+                        <View className="flex-row items-center gap-2">
+                            <Phone size={14} color="#6b7280" />
+                            <Text className="text-xs text-gray-500">{ref.phone || "No Phone"}</Text>
+                        </View>
+                        <View className="flex-row items-center gap-1">
+                            <Text className="text-xs text-gray-500">Trans:</Text>
+                            <Text className="text-sm font-bold text-gray-800">₦{ref.totalSpent?.toLocaleString() || 0}</Text>
+                        </View>
+                    </View>
+                )}
               </View>
             ))
           ) : (

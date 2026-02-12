@@ -31,6 +31,7 @@ import { router } from "expo-router";
 import BannerCarousel from "@/components/carousel/banner";
 import PinModal from "@/components/modals/pinModal";
 import { useToast } from "@/components/toast/toastProvider";
+import { BankLogo } from "@/components/bank/BankLogo";
 
 const TransferSchema = Yup.object().shape({
   bankCode: Yup.string().required("Bank is required"),
@@ -280,19 +281,22 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                           {accountBankMatches.map((item: any) => (
                             <TouchableOpacity
                               key={item.bankCode}
-                              className="px-3 py-2 border-b border-gray-100"
+                              className="px-3 py-2 border-b border-gray-100 flex-row items-center gap-3"
                               onPress={() => {
                                 setSelectedBank(item);
                                 setFieldValue("bankCode", item.bankCode);
                                 setShowAccountBankMatches(false);
                               }}
                             >
-                              <Text className="text-gray-900">
-                                {item.bankName}
-                              </Text>
-                              <Text className="text-gray-500 text-xs">
-                                Code: {item.bankCode}
-                              </Text>
+                              <BankLogo bankName={item.bankName} bankCode={item.bankCode} size={32} />
+                              <View>
+                                <Text className="text-gray-900 font-medium">
+                                  {item.bankName}
+                                </Text>
+                                <Text className="text-gray-500 text-xs">
+                                  Code: {item.bankCode}
+                                </Text>
+                              </View>
                             </TouchableOpacity>
                           ))}
                         </View>
@@ -469,16 +473,19 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                         keyExtractor={(item) => item.bankCode}
                         renderItem={({ item }) => (
                           <TouchableOpacity
-                            className="p-4 border-b border-gray-100 active:bg-gray-50"
+                            className="p-4 border-b border-gray-100 active:bg-gray-50 flex-row items-center gap-4"
                             onPress={() => {
                               setSelectedBank(item);
                               setFieldValue("bankCode", item.bankCode);
                               setBankModalVisible(false);
                             }}
                           >
-                            <Text className="text-base text-gray-900">
-                              {item.bankName}
-                            </Text>
+                            <BankLogo bankName={item.bankName} bankCode={item.bankCode} size={40} />
+                            <View className="flex-1">
+                              <Text className="text-base text-gray-900 font-medium">
+                                {item.bankName}
+                              </Text>
+                            </View>
                           </TouchableOpacity>
                         )}
                       />

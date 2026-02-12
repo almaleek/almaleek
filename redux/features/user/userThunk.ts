@@ -104,6 +104,21 @@ export const resendVerificationCode = createAsyncThunk(
   }
 );
 
+// 🟢 WITHDRAW REFERRAL BONUS
+export const withdrawBonus = createAsyncThunk(
+  "auth/withdrawBonus",
+  async (amount: number | undefined, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post("/auth/withdraw-bonus", { amount });
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error || "Bonus withdrawal failed"
+      );
+    }
+  }
+);
+
 // 🟢 GET REFERRAL STATS
 export const getReferralStats = createAsyncThunk(
   "auth/getReferralStats",

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { currentUser, loginUser, signUpUser, getReferralStats } from "./userThunk";
+import { currentUser, loginUser, signUpUser, getReferralStats, withdrawBonus } from "./userThunk";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { User } from "./type";
@@ -8,6 +8,9 @@ interface ReferralStats {
   totalEarnings: number;
   totalReferrals: number;
   referrals: any[];
+  agentTotalTransactionValue?: number;
+  totalReferralTransactionCount?: number;
+  claimBonusCount?: number;
 }
 
 interface AuthState {
@@ -111,6 +114,30 @@ const authSlice = createSlice({
       .addCase(getReferralStats.rejected, (state, action) => {
         state.error = action.payload as string;
         state.loading = false;
+      })
+
+      // WITHDRAW BONUS
+      .addCase(withdrawBonus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(withdrawBonus.fulfilled, (state, action: PayloadAction<any>) => {
+        state.loading = false;
+        if (state.user) {
+          // Update user balance and bonus from response data
+          if (action.payload.data) {
+            state.user.balance = action.payload.data.balance;
+            state.user.bonus = action.payload.data.bonus;
+          }
+        }
+        // Also update referralStats earnings if needed, though usually bonus field in user object is what matters for display
+        if (state.referralStats && action.payload.data) {
+           state.referralStats.totalEarnings = action.payload.data.bonus;
+        }
+      })
+      .addCase(withdrawBonus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
