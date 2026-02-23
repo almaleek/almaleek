@@ -31,6 +31,7 @@ import {
 import { electricityLogos } from "@/constants/eletricitylog";
 import { useToast } from "@/components/toast/toastProvider";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import PinModal from "@/components/modals/pinModal"; // expects `loading` prop
 import BannerCarousel from "@/components/carousel/banner";
@@ -81,11 +82,7 @@ export default function ElectricityScreen() {
   const [pinCode, setPinCode] = useState("");
   const [details, setDetails] = useState<any[]>([]);
   const {remitaPlans, remitaServices} = useSelector((state:RootState)=>state.easyAccessdataPlans)
-
-  const defaultProvider = {
-    name: "IBEDC",
-    logo: electricityLogos.default,
-  };
+  const [lastMeter, setLastMeter] = useState("");
 
   const { user } = useSelector((state: RootState) => state.auth);
 
@@ -96,6 +93,36 @@ export default function ElectricityScreen() {
       getRemitaPlanServices({ categoryCode: "electricity", productCode: "ibedc" })
     );
   }, [dispatch]);
+
+  // Load last used meter number from storage
+  useEffect(() => {
+    const loadLastMeter = async () => {
+      try {
+        const saved = await AsyncStorage.getItem("last_meter_number");
+        if (saved) {
+          setLastMeter(saved);
+        }
+      } catch (e) {
+        console.log("Error loading last meter number", e);
+      }
+    };
+    loadLastMeter();
+  }, []);
+
+  // Set IBEDC as default provider when services load
+  useEffect(() => {
+    if (!Array.isArray(remitaServices) || remitaServices.length === 0) return;
+    if (selectedProvider) return;
+
+    const ibedcProvider =
+      remitaServices.find((p: any) => {
+        const code = (p.code || "").toLowerCase();
+        const name = (p.name || "").toLowerCase();
+        return code === "ibedc" || name.includes("ibadan");
+      }) || remitaServices[0];
+
+    setSelectedProvider(ibedcProvider);
+  }, [remitaServices, selectedProvider]);
 
   const plans = Array.isArray(remitaPlans)
     ? remitaPlans
@@ -157,6 +184,12 @@ export default function ElectricityScreen() {
           "";
         setCustomerDetails({ name, address });
         setIsMeterVerified(true);
+        try {
+          await AsyncStorage.setItem("last_meter_number", values.meterno);
+          setLastMeter(values.meterno);
+        } catch (e) {
+          console.log("Error saving last meter number", e);
+        }
         showToast("✅ Meter number verified successfully!", "success");
       } else {
         const errPayload = resultAction.payload as any;
@@ -191,12 +224,14 @@ export default function ElectricityScreen() {
       return;
     }
     const payload = {
+      productCode:remitaPlanCode,
       discoCode: selectedProvider?.code || "",
       meterNumber: values.meterno,
       meterType:
         (values.metertype || selectedTab).toLowerCase() === "prepaid" ? "01" : "02",
       amount: Number(values.amount),
       pinCode: enteredPin,
+      phone: values.phone,
     };
     try {
       setLoading(true);
@@ -255,8 +290,8 @@ export default function ElectricityScreen() {
 
         <Formik
           initialValues={{
-            meterno: "",
-            company: selectedProvider?.name || defaultProvider.name,
+            meterno: lastMeter,
+            company: selectedProvider?.name || "",
             metertype: selectedTab,
             amount: "",
             phone: "",
@@ -271,7 +306,7 @@ export default function ElectricityScreen() {
             }
             setPinVisible(true);
             setDetails([
-              { label: "Provider", value: selectedProvider?.name || defaultProvider.name },
+              { label: "Provider", value: selectedProvider?.name || "" },
               { label: "Meter Number", value: values.meterno },
               { label: "Meter Type", value: values.metertype || selectedTab },
               { label: "Customer Name", value: customerDetails.name },
@@ -303,13 +338,13 @@ export default function ElectricityScreen() {
                       ? electricityLogos[
                           formatProvider(selectedProvider.name)
                         ] || electricityLogos.default
-                      : defaultProvider.logo
+                      : electricityLogos.default
                   }
                   style={{ width: 35, height: 35, borderRadius: 8 }}
                 />
 
                 <Text className="text-gray-700 font-semibold text-base">
-                  {selectedProvider?.name || defaultProvider.name}
+                  {selectedProvider?.name || "Select Provider"}
                 </Text>
               </TouchableOpacity>
 

@@ -9,22 +9,27 @@ import {
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "expo-router";
-import { Formik } from "formik";
-import * as Yup from "yup";
-import { ChevronRight } from "lucide-react-native";
 
 import { RootState, AppDispatch } from "@/redux/store";
+
 import { examLogos } from "@/constants/examlogo";
 
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
 import ApScrollView from "@/components/scrollview/scrollview";
 import ApHeader from "@/components/headers/header";
-import ApTextInput from "@/components/textInput/textInput";
-import ApButton from "@/components/button/button";
-import BannerCarousel from "@/components/carousel/banner";
 import { useToast } from "@/components/toast/toastProvider";
 import PinModal from "@/components/modals/pinModal";
-import { getRemitaServices, getRemitaPlanServices, purchaseExam } from "@/redux/features/easyAccess/service";
+import {
+  fetchDataPlans,
+  getExamServices,
+  purchaseExam as purchaseExamPin,
+} from "@/redux/features/easyAccess/service";
+import BannerCarousel from "@/components/carousel/banner";
+const banners = [
+  require("../../../assets/images/banner1.png"),
+  require("../../../assets/images/banner2.png"),
+  require("../../../assets/images/banner3.png"),
+];
 
 export default function ExamScreen() {
   const dispatch = useDispatch<AppDispatch>();
@@ -32,84 +37,124 @@ export default function ExamScreen() {
   const { showToast } = useToast();
 
   const { user } = useSelector((state: RootState) => state.auth);
-  const { remitaPlans, remitaServices } = useSelector(
+  const { examServices, plans } = useSelector(
     (state: RootState) => state.easyAccessdataPlans
   );
 
-  const [selectedProvider, setSelectedProvider] = useState<any>(null);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  const [unitPrice, setUnitPrice] = useState(0);
+  const [providerModal, setProviderModal] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+
   const [pinCode, setPinCode] = useState("");
   const [pinVisible, setPinVisible] = useState(false);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
   const [details, setDetails] = useState<any[]>([]);
-  const [providerModal, setProviderModal] = useState(false);
 
   useEffect(() => {
-    dispatch(getRemitaServices("5"));
+    dispatch(getExamServices());
   }, [dispatch]);
 
-  const handleProviderSelect = async (provider: any) => {
-    setSelectedProvider(provider);
-    setSelectedPlan(null);
-    setUnitPrice(0);
-    setProviderModal(false);
 
-    if (provider?.code) {
-      dispatch(
-        getRemitaPlanServices({
-          categoryCode: "educations",
-          productCode: provider.code.toLowerCase(),
+  const fetchExamPlans = async (providerName: string) => {
+    setPlansLoading(true);
+    try {
+      const result = await dispatch(
+        fetchDataPlans({
+          network: providerName.split(" ")[0],
+          // category: "exam"
         })
       );
+      if (fetchDataPlans.fulfilled.match(result)) {
+        const payload: any = result.payload || {};
+        const serverPlans: any[] = payload.plans || [];
+        if (serverPlans.length) {
+          const first = serverPlans[0];
+          setSelectedPlan(first);
+        }
+      } else {
+        showToast(result.payload || "Failed to fetch exam plans", "error");
+      }
+    } catch (err) {
+      showToast("Unexpected error fetching exam plans", "error");
+    } finally {
+      setPlansLoading(false);
     }
   };
 
-  const handlePlanSelect = (plan: any) => {
-    setSelectedPlan(plan);
-    const price = plan?.amount || plan?.unitPrice || 0;
-    setUnitPrice(Number(price));
-  };
+  useEffect(() => {
+    if (!Array.isArray(examServices) || !examServices.length) return;
+    if (selectedProvider) return;
+    const defaultService = examServices[0];
+    setSelectedProvider(defaultService);
+    fetchExamPlans(defaultService.name || "");
+  }, [examServices, selectedProvider]);
 
-  const plans = Array.isArray(remitaPlans)
-    ? remitaPlans
-    : (remitaPlans as any)?.items || [];
+  const handleCategorySelect = (product: any) => {
+    setSelectedProvider(product);
+    setSelectedPlan(product);
+    setProviderModal(false);
+  };
 
   const formatProvider = (prov?: string) =>
     typeof prov === "string"
-      ? prov.trim().toLowerCase().replace(/[^a-z0-9]/g, "")
+      ? prov
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "")
       : "default";
 
-  const validationSchema = Yup.object({
-    quantity: Yup.number().required("Enter quantity").min(1, "Minimum 1"),
-    phone: Yup.string()
-      .matches(/^[0-9]{11}$/, "Must be an 11-digit phone number")
-      .required("Phone number required"),
-  });
+  const handlePurchase = async (enteredPin: string) => {
+    if (!selectedProvider || !selectedPlan)
+      return showToast("Please select an Exam plan", "error");
 
-  const handleFormSubmit = async (formValues: any, enteredPin: string) => {
-    if (!selectedPlan) return showToast("Please select an Exam Type", "error");
     if (!enteredPin || enteredPin.length !== 4) {
       showToast("Please enter a valid 4-digit PIN", "error");
       return;
     }
+
     try {
-      const quantity = Number(formValues.quantity);
-      const price = unitPrice > 0 ? unitPrice : Number(formValues.amount);
-      const totalAmount = quantity * price;
+      const amount =
+        selectedPlan?.ourPrice ||
+        selectedPlan?.amount ||
+        selectedPlan?.unitPrice ||
+        0;
+      if (!amount) {
+        showToast("Invalid plan amount", "error");
+        return;
+      }
+
       const payload = {
-        productCode: selectedPlan?.code || "",
         pinCode: enteredPin,
-        phoneNumber: formValues.phone,
-        amount: totalAmount,
+        planId:
+          selectedPlan?._id ||
+          selectedPlan?.id ||
+          selectedPlan?.planId ||
+          "",
+        productCode:
+          selectedPlan?.code ||
+          selectedPlan?.productCode ||
+          selectedProvider?.code ||
+          selectedProvider?.name,
+        phone: (user as any)?.phoneNumber || (user as any)?.phone || "",
+        amount: Number(amount),
       };
+
       setLoading(true);
-      const result = await dispatch(purchaseExam({ payload }));
+
+      const result = await dispatch(
+        purchaseExamPin({ payload }) as any
+      );
+
       setLoading(false);
-      if (purchaseExam.fulfilled.match(result)) {
+
+      // --- SUCCESS HANDLER ---
+      if (purchaseExamPin.fulfilled.match(result)) {
         showToast("✅ Exam Pin purchase successful!", "success");
-      } else {
-        showToast( result?.payload?.error || "Exam purchase failed..", "error");
+      }
+
+      if (!purchaseExamPin.fulfilled.match(result)) {
+        showToast(result?.payload?.error || "Exam purchase failed..", "error");
       }
     } catch (error: any) {
       setLoading(false);
@@ -121,229 +166,181 @@ export default function ExamScreen() {
     }
   };
 
-  const banners = [
-    require("../../../assets/images/banner1.png"),
-    require("../../../assets/images/banner2.png"),
-    require("../../../assets/images/banner3.png"),
-  ];
-
   return (
     <ApSafeAreaView>
       <ApHeader title="Exam PIN Purchase" />
-      <ApScrollView style={{ backgroundColor: "white" }}>
-        <BannerCarousel
-          images={banners}
-          heightRatio={0.25}
-          borderRadius={16}
-          autoplayInterval={4000}
-        />
 
-        {/* Provider Selector */}
-        <TouchableOpacity
-          className="mt-4 p-3 mx-4 border border-gray-300 rounded-xl flex-row gap-4 items-center mb-2"
-          onPress={() => setProviderModal(true)}
-        >
-          <View className="flex-1 flex-row justify-between">
-            <View className="flex-1 flex-row gap-4 items-center">
-              {selectedProvider && (
-                <Image
-                  source={
-                    examLogos[formatProvider(selectedProvider.code)] ||
-                    examLogos.default
-                  }
-                  style={{ width: 35, height: 35, borderRadius: 8 }}
-                />
-              )}
-              <Text className="text-gray-700 font-semibold text-base">
-                {selectedProvider?.name || "Select Exam Board"}
+       <BannerCarousel
+                images={banners}
+                heightRatio={0.25}
+                borderRadius={16}
+                autoplayInterval={4000}
+              />
+
+      <ApScrollView style={{ backgroundColor: "white" }}>
+        <View className="p-4">
+          <TouchableOpacity
+            className="p-4 border-b border-gray-300 rounded-xl flex-row justify-between items-center mb-4"
+            onPress={() => setProviderModal(true)}
+          >
+            <View className="flex-row items-center gap-3">
+              <Image
+                source={
+                  selectedProvider?.code || selectedProvider?.name
+                    ? examLogos[
+                        formatProvider(
+                          selectedProvider.code || selectedProvider.name
+                        )
+                      ] || examLogos.default
+                    : examLogos.default
+                }
+                style={{ width: 35, height: 35, borderRadius: 8 }}
+              />
+
+              <Text className="text-gray-700 font-semibold">
+                {selectedProvider?.name ||
+                  selectedProvider?.productName ||
+                  "Select Exam Type"}
               </Text>
             </View>
-            <ChevronRight color="gray" />
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
 
-        {/* Plans Grid */}
-        {selectedProvider && (
-          <View className="mt-4 px-4">
-            <Text className="text-gray-800 font-bold text-lg mb-3">
-              Select Exam Type
+          {plansLoading && (
+            <Text className="text-center text-gray-500 mb-2">
+              Loading plans...
             </Text>
+          )}
 
-            {plans.length === 0 ? (
-              <Text className="text-gray-500 italic">Loading plans...</Text>
-            ) : (
-              <View className="flex-row flex-wrap justify-between">
-                {plans.map((plan: any, index: number) => (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => handlePlanSelect(plan)}
-                    className={`w-[48%] mb-3 p-4 rounded-2xl border ${
-                      selectedPlan?.code === plan.code
-                        ? "bg-green-50 border-green-500"
-                        : "bg-gray-50 border-gray-200"
-                    }`}
-                  >
-                    <Text className="font-bold text-sm text-gray-800 mb-1">
-                      {plan.name}
-                    </Text>
-                    <Text
-                      className="text-gray-500 text-[10px] leading-tight mb-2"
-                      numberOfLines={2}
-                    >
-                      {plan.description}
-                    </Text>
-                    <Text className="text-green-700 font-bold">
-                      {plan.amount ? `₦${plan.amount}` : "Dynamic Price"}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Purchase Form */}
-        {selectedPlan && (
-          <View className="mt-4 border-t border-gray-100 pt-4">
-            <Text className="px-4 text-gray-800 font-bold text-lg mb-3">
-              Enter Details
+          {!plansLoading && Array.isArray(plans) && plans.length === 0 && (
+            <Text className="text-center text-gray-500 mb-2">
+              No plans available
             </Text>
-            <Formik
-              initialValues={{
-                quantity: "1",
-                phone: "",
-                amount: unitPrice > 0 ? String(unitPrice) : "",
-              }}
-              enableReinitialize
-              validationSchema={validationSchema}
-              onSubmit={(values) => {
-                if (unitPrice === 0 && !values.amount) {
-                  showToast("Please enter amount", "error");
-                  return;
-                }
-                const quantity = Number(values.quantity);
-                const price = unitPrice > 0 ? unitPrice : Number(values.amount);
-                const totalAmount = quantity * price;
-                setDetails([
-                  { label: "Exam Board", value: selectedProvider?.name },
-                  { label: "Exam Type", value: selectedPlan?.name },
-                  { label: "Quantity", value: values.quantity },
-                  { label: "Phone Number", value: values.phone },
-                  { label: "Total Amount", value: `₦${totalAmount}` },
-                ]);
-                setPinVisible(true);
-              }}
-            >
-              {({ handleChange, handleSubmit, values }) => (
-                <View className="p-4 pt-0">
-                  <ApTextInput
-                    label="Quantity"
-                    name="quantity"
-                    placeholder="Enter number of PINs"
-                    keyboardType="numeric"
-                    onChangeText={handleChange("quantity")}
-                    value={values.quantity}
-                  />
+          )}
 
-                  <ApTextInput
-                    label="Phone Number"
-                    name="phone"
-                    placeholder="Enter phone number"
-                    keyboardType="phone-pad"
-                    onChangeText={handleChange("phone")}
-                    value={values.phone}
-                  />
+          {!plansLoading &&
+            Array.isArray(plans) &&
+            plans.length > 0 && (
+              <View className="mt-2 flex-row flex-wrap justify-between">
+                {plans.map((plan: any, index: number) => {
+                  const amount =
+                    plan?.ourPrice || plan?.amount || plan?.unitPrice || 0;
 
-                  <ApTextInput
-                    label="Amount (per PIN)"
-                    name="amount"
-                    value={unitPrice > 0 ? String(unitPrice) : values.amount}
-                    editable={unitPrice === 0}
-                    onChangeText={handleChange("amount")}
-                    placeholder="Enter Amount"
-                  />
-
-                  <ApTextInput
-                    label="Total Amount"
-                    name="totalAmount"
-                    valueOverride={String(
-                      (Number(values.quantity) || 0) *
-                        (unitPrice > 0
-                          ? unitPrice
-                          : Number(values.amount) || 0)
-                    )}
-                    disabled={true}
-                    placeholder="0"
-                  />
-
-                  <ApButton
-                    title={
-                      loading ? "Processing..." : `Buy ${selectedPlan.name}`
-                    }
-                    onPress={handleSubmit as any}
-                    disabled={loading}
-                  />
-                  <PinModal
-                    visible={pinVisible}
-                    loading={loading}
-                    title="Review Exam PIN Purchase"
-                    details={details}
-                    onClose={() => {
-                      if (!loading) setPinVisible(false);
-                    }}
-                    onSubmit={(pin) => {
-                      setPinCode(pin);
-                      handleFormSubmit(values, pin);
-                    }}
-                  />
-                </View>
-              )}
-            </Formik>
-          </View>
-        )}
-
-
-        {/* Provider Modal */}
-        <Modal visible={providerModal} transparent animationType="fade">
-          <View className="flex-1 bg-black/40 justify-center items-center">
-            <View className="w-[90%] bg-white p-5 rounded-2xl">
-              <Text className="text-xl font-semibold mb-4">
-                Select Exam Board
-              </Text>
-
-              <ScrollView>
-                {Array.isArray(remitaServices) &&
-                  remitaServices.map((item: any) => (
+                  return (
                     <TouchableOpacity
-                      key={item.code || item.name}
-                      className="flex-row items-center p-3 border-b border-gray-100"
-                      onPress={() => handleProviderSelect(item)}
+                      key={plan._id || plan.name || index}
+                      className="w-[32%] bg-gray-100 border border-gray-200 rounded-xl p-4 mb-4"
+                      onPress={() => {
+                        setSelectedPlan(plan);
+                        setDetails([
+                          {
+                            label: "Exam Type",
+                            value:
+                              selectedProvider?.name ||
+                              selectedProvider?.productName ||
+                              "N/A",
+                          },
+                          {
+                            label: "Plan",
+                            value: plan.name || plan.productName || "N/A",
+                          },
+                          {
+                            label: "Validity",
+                            value: plan.validity || "N/A",
+                          },
+                          {
+                            label: "Amount",
+                            value: `₦${amount}`,
+                          },
+                          {
+                            label: "Phone",
+                            value:
+                              (user as any)?.phoneNumber ||
+                              (user as any)?.phone ||
+                              "N/A",
+                          },
+                        ]);
+                        setPinVisible(true);
+                      }}
                     >
-                      <Image
-                        source={
-                          examLogos[formatProvider(item.code)] ||
-                          examLogos.default
-                        }
-                        style={{ width: 40, height: 40, borderRadius: 20 }}
-                      />
-                      <Text className="ml-3 text-base font-semibold">
-                        {item.name}
+                      <Text className="text-[16px] font-semibold text-center">
+                        {plan.name || plan.productName || "Exam Plan"}
+                      </Text>
+                      <Text className="text-gray-600 text-xs mt-1 text-center bg-green-100 px-2 py-1 rounded-full">
+                        {plan.validity || "Validity N/A"}
+                      </Text>
+                      <Text className="text-green-600 font-semibold mt-2 text-center text-lg">
+                        ₦{amount}
                       </Text>
                     </TouchableOpacity>
-                  ))}
-              </ScrollView>
+                  );
+                })}
+                {Array.from({ length: (3 - (plans.length % 3)) % 3 }).map(
+                  (_, i) => (
+                    <View key={`phantom-${i}`} className="w-[32%] mb-4" />
+                  )
+                )}
+              </View>
+            )}
 
-              <TouchableOpacity
-                className="mt-4 p-3 bg-red-500 rounded-lg"
-                onPress={() => setProviderModal(false)}
-              >
-                <Text className="text-white text-center font-semibold">
-                  Close
+          <Modal visible={providerModal} transparent animationType="fade">
+            <View className="flex-1 justify-center items-center bg-black/40 px-4">
+              <View className="bg-white w-full rounded-2xl p-5">
+                <Text className="text-xl font-semibold mb-4 text-center">
+                  Select Exam Type
                 </Text>
-              </TouchableOpacity>
+
+                <ScrollView>
+                  {Array.isArray(examServices) &&
+                    examServices.map((item: any) => (
+                      <TouchableOpacity
+                        key={item.code || item._id || item.name}
+                        className="flex-row items-center p-3 border-b border-gray-200"
+                        onPress={() => {
+                          handleCategorySelect(item);
+                          fetchExamPlans(item.name || item.productName || "");
+                        }}
+                      >
+                        <Image
+                          source={
+                            examLogos[
+                              formatProvider(item.code || item.productCode)
+                            ] || examLogos.default
+                          }
+                          style={{ width: 40, height: 40, borderRadius: 50 }}
+                        />
+                        <Text className="ml-3 text-base font-semibold">
+                          {item.name || item.productName}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                <TouchableOpacity
+                  className="mt-4 p-3 bg-red-500 rounded-lg"
+                  onPress={() => setProviderModal(false)}
+                >
+                  <Text className="text-white text-center font-semibold">
+                    Close
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
+
+          <PinModal
+            visible={pinVisible}
+            loading={loading}
+            title="Review Exam Purchase"
+            details={details}
+            onClose={() => {
+              if (!loading) setPinVisible(false);
+            }}
+            onSubmit={(pin) => {
+              setPinCode(pin);
+              handlePurchase(pin);
+            }}
+          />
+        </View>
       </ApScrollView>
     </ApSafeAreaView>
   );

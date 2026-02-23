@@ -60,7 +60,7 @@ export default function WalletCard({
           <Text className="text-4xl font-bold text-white">
             {showBalance
               ? `₦${Number(user?.balance ?? 0).toLocaleString()}`
-              : "••••••••"}
+              : "•••••"}
           </Text>
         </View>
 
@@ -101,8 +101,14 @@ export default function WalletCard({
         </View>
 
         {/* Decorative Circles */}
-        <View className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl" />
-        <View className="absolute -bottom-10 -left-10 w-32 h-32 bg-black/5 rounded-full blur-xl" />
+        <View
+          pointerEvents="none"
+          className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"
+        />
+        <View
+          pointerEvents="none"
+          className="absolute -bottom-10 -left-10 w-32 h-32 bg-black/5 rounded-full blur-xl"
+        />
       </LinearGradient>
     </View>
   );

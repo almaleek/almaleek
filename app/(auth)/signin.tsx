@@ -22,7 +22,7 @@ export default function SignInScreen() {
   const handleSubmit = async (values: any, { setSubmitting }:any) => {
     try {
       const resultAction = await dispatch(
-        loginUser({ email: values.email, password: values.password })
+        loginUser({ identifier: values.identifier, password: values.password })
       );
 
       if (loginUser.fulfilled.match(resultAction)) {
@@ -54,9 +54,9 @@ export default function SignInScreen() {
     <ApSafeAreaView>
       <ApKeyboardWrapper>
         <Formik
-          initialValues={{ email: "", password: "" }}
+          initialValues={{ identifier: "", password: "" }}
           validationSchema={Yup.object({
-            email: Yup.string().email("Invalid email").required("Required"),
+            identifier: Yup.string().required("Required"),
             password: Yup.string().min(6, "Too short").required("Required"),
           })}
           onSubmit={handleSubmit}
@@ -70,7 +70,9 @@ export default function SignInScreen() {
                     className="w-24 h-24"
                     resizeMode="contain"
                   />
-                  <Text className="mt-4 text-2xl font-extrabold text-gray-900 text-center">
+                  {/* <Text className="mt-4 text-2xl font-extrabold text-gray-900 "> */}
+                  <Text className="text-gray-500 mt-4 font-extrabold text-2xl text-center">
+
                     Welcome Back
                   </Text>
                   <Text className="text-gray-500 mt-1 text-center">
@@ -79,11 +81,11 @@ export default function SignInScreen() {
                 </View>
 
                 <ApTextInput
-                  name="email"
-                  label="Email"
-                  placeholder="Enter your email"
+                  name="identifier"
+                  label="Email or Phone Number"
+                  placeholder="Enter your email or phone number"
                   icon={<Mail size={20} />}
-                  keyboardType="email-address"
+                  keyboardType="default"
                 />
 
                 <ApTextInput

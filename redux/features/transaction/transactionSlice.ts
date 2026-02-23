@@ -95,6 +95,13 @@ interface Transaction {
   new_balance?: number;
   note?: string;
 
+  // Transfer Transactions
+  destination_account_number?: string;
+  destination_account_name?: string;
+  destination_bank_code?: string;
+  sender_name?: string;
+  description?: string;
+
   [key: string]: any; // Safety for future expansion
 }
 

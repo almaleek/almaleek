@@ -69,7 +69,7 @@ export const fetchDataPlans = createAsyncThunk<
 export const fetchDataCategories = createAsyncThunk<
   string[],
   {
-    serviceType: "airtime" | "data" | "cable";
+    serviceType: "airtime" | "data" | "cable" | "exam";
     network: string;
   },
   { rejectValue: string }
@@ -437,6 +437,7 @@ export const getExamServices = createAsyncThunk(
     }
   }
 );
+
 
 
 export const getRemitaServices = createAsyncThunk(

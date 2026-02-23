@@ -127,7 +127,7 @@ export default function HomePage() {
 
   const [showBalance, setShowBalance] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const toggleBalance = () => setShowBalance(!showBalance);
+  const toggleBalance = () => setShowBalance((prev) => !prev);
 
   const actions = [
     {

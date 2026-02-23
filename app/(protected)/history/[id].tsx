@@ -167,6 +167,16 @@ export default function TransactionPage() {
             />
             <RenderRow label="Service" value={transaction.service || "N/A"} />
 
+            {transaction.destination_account_name && (
+              <RenderRow label="Beneficiary" value={transaction.destination_account_name} />
+            )}
+            {transaction.destination_account_number && (
+              <RenderRow label="Account No" value={transaction.destination_account_number} />
+            )}
+            {transaction.description && (
+              <RenderRow label="Description" value={transaction.description} />
+            )}
+
             {transaction.network && (
               <RenderRow
                 label="Network"

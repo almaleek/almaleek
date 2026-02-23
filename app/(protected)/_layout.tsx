@@ -9,6 +9,7 @@ import UpdateModal from "@/components/UpdateModal";
 export default function ProtectedLayout() {
   useAutoLogout(180000);
   
+  
   const [updateVisible, setUpdateVisible] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(false);
   const [storeUrl, setStoreUrl] = useState("");

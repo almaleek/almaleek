@@ -83,7 +83,7 @@ export default function DataPlanScreen() {
     }
   }, [dataServices]);
 
-  // Load categories and plans for a network
+  // Load categories and all plans for a network
   const loadCategoriesAndPlans = async (network: { name: string }) => {
     try {
       const result = await dispatch(
@@ -97,12 +97,10 @@ export default function DataPlanScreen() {
         const cats = result.payload || [];
         setCategories(cats);
 
-        const firstCategory = cats[0] || "";
         setActiveTab("All");
 
-        if (firstCategory) {
-          fetchPlans(network.name, firstCategory);
-        }
+        // Fetch all plans for this network (no category filter)
+        fetchPlans(network.name, "");
       } else {
         showToast(result.payload || "Failed to fetch categories", "error");
       }
@@ -130,23 +128,39 @@ export default function DataPlanScreen() {
   };
 
   const durationTabs = ["All", "Daily", "Weekly", "Monthly"];
-  const getDurationType = (validity: string) => {
-    const v = String(validity).toLowerCase();
-    if (v.includes("daily") || /\b\d+\s*day(s)?\b/.test(v) || v.includes("day")) {
-      return "Daily";
-    }
-    if (v.includes("weekly") || /\b7\s*day(s)?\b/.test(v) || v.includes("week")) {
-      return "Weekly";
-    }
-    if (v.includes("monthly") || /\b30\s*day(s)?\b/.test(v) || v.includes("month")) {
+  const getDurationCategory = (validity: string) => {
+    const val = (validity || "").toLowerCase();
+    const days = parseInt(val);
+    if (val.includes("daily")) return "Daily";
+    if (val.includes("weekly")) return "Weekly";
+    if (val.includes("month")) return "Monthly";
+    if (!isNaN(days)) {
+      if (days < 7) return "Daily";
+      if (days < 30) return "Weekly";
       return "Monthly";
     }
-    return "All";
+    return "Monthly";
   };
+
+  const sortedPlans = [...plans]
+    .filter(
+      (p: any) =>
+        p?.serviceType?.toLowerCase() === "data" &&
+        p?.validity &&
+        p?.name
+    )
+    .sort(
+      (a: any, b: any) =>
+        Number(a.ourPrice ?? a.amount ?? 0) -
+        Number(b.ourPrice ?? b.amount ?? 0)
+    );
+
   const visiblePlans =
     activeTab === "All"
-      ? plans
-      : plans.filter((p: any) => getDurationType(p.validity) === activeTab);
+      ? sortedPlans
+      : sortedPlans.filter(
+          (p: any) => getDurationCategory(p.validity) === activeTab
+        );
 
   // Handle network selection
   const handleNetworkSelect = async (network: { name: string; logo: any }) => {

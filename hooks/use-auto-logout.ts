@@ -1,17 +1,33 @@
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
-import { useRouter, useNavigation } from "expo-router";
+import { useRouter, useNavigation, usePathname } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function useAutoLogout(timeout = 60000) {
   const router = useRouter();
   const navigation = useNavigation();
+  const pathname = usePathname();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPathRef = useRef<string | null>(pathname);
+
+  useEffect(() => {
+    lastPathRef.current = pathname;
+  }, [pathname]);
 
   const startTimer = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
     timerRef.current = setTimeout(() => {
-      router.replace("/(security)/passcode");
+      (async () => {
+        try {
+          const routeToSave =
+            lastPathRef.current || "/(protected)/(tabs)";
+          await AsyncStorage.setItem("locked_route", routeToSave);
+        } catch (e) {
+          console.log("Failed to save locked route", e);
+        }
+        router.replace("/(security)/passcode");
+      })();
     }, timeout);
   };
 

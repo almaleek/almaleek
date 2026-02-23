@@ -1,8 +1,8 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-
-const API_URL = "http://10.33.74.142:5000/api";
+// const API_URL = "http://10.24.178.142:5000/api";
+const API_URL = "https://almaleekbe-production-229b.up.railway.app/api"
 
 let isRefreshing = false;
 let subscribers: ((token: string) => void)[] = [];
@@ -46,16 +46,24 @@ axiosInstance.interceptors.response.use(
     const originalRequest = error.config as any;
 
     const status = error.response?.status;
-    const errorMessage = error.response?.data?.error;
+    const errorMessage =
+      error.response?.data?.error || error.response?.data?.msg;
 
-    // 🔐 Access token expired → refresh
-    if (errorMessage === "Token expired" && !originalRequest._retry) {
+    // 🔐 Access token expired → attempt refresh
+    if (
+      status === 401 &&
+      errorMessage === "Token expired" &&
+      !originalRequest._retry
+    ) {
       originalRequest._retry = true;
 
-      // If refresh already in progress, wait
+      // If refresh already in progress, queue this request
       if (isRefreshing) {
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           subscribeTokenRefresh((token) => {
+            if (!token) {
+              return reject(new Error("Failed to refresh token"));
+            }
             originalRequest.headers.Authorization = `Bearer ${token}`;
             resolve(axiosInstance(originalRequest));
           });
@@ -84,18 +92,19 @@ axiosInstance.interceptors.response.use(
         return axiosInstance(originalRequest);
       } catch (refreshError) {
         console.error("Token refresh failed:", refreshError);
+
+        // Clear stored tokens
+        await AsyncStorage.removeItem("accessToken");
+        await AsyncStorage.removeItem("refreshToken");
+
         // 🔥 Refresh failed → logout
         if (logoutHandler) logoutHandler();
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
-
-    // Any other 401 → logout
-    // if (status === 401 && logoutHandler) {
-    //   logoutHandler();
-    // }
 
     return Promise.reject(error);
   }

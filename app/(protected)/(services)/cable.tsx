@@ -30,7 +30,7 @@ import {
    handleVerifyTvSub,
   purchaseTvSub,
 } from "@/redux/features/easyAccess/service";
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Banner Images
 const banners = [
@@ -61,6 +61,7 @@ export default function CableScreen() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [details, setDetails] = useState<any[]>([]);
   const {remitaPlans, remitaServices} = useSelector((state:RootState)=>state.easyAccessdataPlans)
+  const [lastSmartcard, setLastSmartcard] = useState("");
 
   const defaultProvider = {
     name: "DSTV",
@@ -114,6 +115,12 @@ export default function CableScreen() {
           smartCard: content.Smartcard_Number || smartcardNumber,
           balance: content.Balance || data?.balance || "",
         });
+        try {
+          await AsyncStorage.setItem("last_smartcard_number", smartcardNumber);
+          setLastSmartcard(smartcardNumber);
+        } catch (e) {
+          console.log("Error saving last smartcard number", e);
+        }
         setIsVerified(true);
         showToast("✅ Smart Card verified!", "success");
       } else {
@@ -206,6 +213,21 @@ export default function CableScreen() {
     ? remitaPlans
     : (remitaPlans as any)?.items || [];
 
+  useEffect(() => {
+    const loadLastSmartcard = async () => {
+      try {
+        const saved = await AsyncStorage.getItem("last_smartcard_number");
+        if (saved) {
+          setLastSmartcard(saved);
+          setSmartCardNo(saved);
+        }
+      } catch (e) {
+        console.log("Error loading last smartcard number", e);
+      }
+    };
+    loadLastSmartcard();
+  }, []);
+
   return (
     <ApSafeAreaView>
       <ApHeader title="Cable TV Subscription" />
@@ -217,7 +239,11 @@ export default function CableScreen() {
           borderRadius={16}
           autoplayInterval={4000}
         />
-        <Formik initialValues={{ smartcard: "" }} onSubmit={() => {}}>
+        <Formik
+          initialValues={{ smartcard: lastSmartcard }}
+          enableReinitialize
+          onSubmit={() => {}}
+        >
           {({
             handleChange,
             handleBlur,
