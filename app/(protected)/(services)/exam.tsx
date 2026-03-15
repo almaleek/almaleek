@@ -146,6 +146,7 @@ export default function ExamScreen() {
         purchaseExamPin({ payload }) as any
       );
 
+      
       setLoading(false);
 
       // --- SUCCESS HANDLER ---

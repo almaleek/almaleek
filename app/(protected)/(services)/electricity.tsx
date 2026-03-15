@@ -139,6 +139,24 @@ export default function ElectricityScreen() {
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "") || "default";
 
+  const getProviderDisplayName = (name: string) => {
+    if (!name) return "";
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes("eko")) return "Eko Electricity";
+    if (lowerName.includes("ikeja")) return "Ikeja Electricity";
+    if (lowerName.includes("abuja")) return "Abuja Electricity";
+    if (lowerName.includes("ibadan")) return "Ibadan Electricity";
+    if (lowerName.includes("enugu")) return "Enugu Electricity";
+    if (lowerName.includes("port harcourt") || lowerName.includes("phed"))
+      return "Port Harcourt Electricity";
+    if (lowerName.includes("jos")) return "Jos Electricity";
+    if (lowerName.includes("kaduna")) return "Kaduna Electricity";
+    if (lowerName.includes("kano")) return "Kano Electricity";
+    if (lowerName.includes("benin")) return "Benin Electricity";
+    if (lowerName.includes("yola")) return "Yola Electricity";
+    return name;
+  };
+
   //
   // VERIFY METER
   //
@@ -169,7 +187,7 @@ export default function ElectricityScreen() {
       const resultAction = await dispatch(handleVerifyMeter(payload));
 
       if (handleVerifyMeter.fulfilled.match(resultAction)) {
-        const res = resultAction.payload?.message.content || resultAction.payload || {};
+        const res = resultAction.payload.data || {};
         console.log(res, "the response")
         const name =
           res?.customerName ||
@@ -344,7 +362,9 @@ export default function ElectricityScreen() {
                 />
 
                 <Text className="text-gray-700 font-semibold text-base">
-                  {selectedProvider?.name || "Select Provider"}
+                  {selectedProvider
+                    ? getProviderDisplayName(selectedProvider.name)
+                    : "Select Provider"}
                 </Text>
               </TouchableOpacity>
 
@@ -540,7 +560,9 @@ export default function ElectricityScreen() {
                               }}
                             />
                             <Text className="ml-3 text-base font-semibold">
-                              {item.name || item.providerName || item.code}
+                              {getProviderDisplayName(
+                                item.name || item.providerName || item.code
+                              )}
                             </Text>
                           </TouchableOpacity>
                         );

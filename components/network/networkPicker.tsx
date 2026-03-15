@@ -66,9 +66,12 @@ export default function NetworkPhonePicker({
             className="ml-3 flex-1 text-lg font-medium"
             placeholder="Enter phone number"
             value={phone}
-            onChangeText={(text) => setPhone(text)}
+            onChangeText={(text) => {
+              const cleaned = text.replace(/\s+/g, "");
+              setPhone(cleaned);
+            }}
             keyboardType="numeric"
-            maxLength={11}
+            maxLength={15}
           />
 
           {/* CONTACT PICKER */}

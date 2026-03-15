@@ -16,15 +16,15 @@ export const getLatestNotification = createAsyncThunk(
   }
 );
 
-export const getAllNotification = createAsyncThunk(
-  "notification/all",
+export const getUserNotifications = createAsyncThunk(
+  "notification/my",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.get("/notifications/all");
+      const response = await axiosInstance.get("/notifications/my-notifications");
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data || "Failed to fetch all notifications"
+        error.response?.data || "Failed to fetch notifications"
       );
     }
   }
@@ -65,15 +65,15 @@ const notificationSlice = createSlice({
       })
 
       // All
-      .addCase(getAllNotification.pending, (state) => {
+      .addCase(getUserNotifications.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(getAllNotification.fulfilled, (state, action) => {
+      .addCase(getUserNotifications.fulfilled, (state, action) => {
         state.loading = false;
         state.notifications = action.payload;
       })
-      .addCase(getAllNotification.rejected, (state, action) => {
+      .addCase(getUserNotifications.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

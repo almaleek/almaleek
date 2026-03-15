@@ -1,9 +1,9 @@
-import { View, Text, ScrollView } from "react-native";
+import { View, Text } from "react-native";
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Check } from "lucide-react-native";
 import { AppDispatch, RootState } from "@/redux/store";
-import { getAllNotification } from "@/redux/features/notifications/notificationSlice";
+import { getUserNotifications } from "@/redux/features/notifications/notificationSlice";
 import ApHeader from "@/components/headers/header";
 import EmptyTransaction from "@/components/empty/emptyTransaction";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
@@ -17,7 +17,7 @@ export default function NotificationPage() {
   );
 
   useEffect(() => {
-    dispatch(getAllNotification());
+    dispatch(getUserNotifications());
   }, [dispatch]);
 
   return (

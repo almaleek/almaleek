@@ -125,7 +125,16 @@ const remitaSlice = createSlice({
     });
     builder.addCase(performNameEnquiry.fulfilled, (state, action) => {
       state.enquiryLoading = false;
-      state.enquiryResult = action.payload.data;
+      const payload: any = action.payload || {};
+      const status = payload?.data?.status || payload?.status;
+
+      if (status === "00") {
+        state.enquiryResult = payload.data;
+        state.enquiryError = null;
+      } else {
+        state.enquiryResult = null;
+        state.enquiryError = payload;
+      }
     });
     builder.addCase(performNameEnquiry.rejected, (state, action) => {
       state.enquiryLoading = false;

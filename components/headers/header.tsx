@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity } from "react-native";
 import React from "react";
-import { useRouter } from "expo-router";
+import { useRouter, useNavigation } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 
 interface HeaderProps {
@@ -10,12 +10,19 @@ interface HeaderProps {
 
 export default function ApHeader({ title, link }: HeaderProps) {
   const router = useRouter();
+  const navigation = useNavigation();
 
   const handlePress = () => {
     if (link) {
-      router.push(link as any); // navigate to specific link
+      if (navigation.canGoBack()) {
+        router.back();
+      } else {
+        router.replace(link as any);
+      }
     } else {
-      router.back(); // default: go back
+      if (navigation.canGoBack()) {
+        router.back();
+      }
     }
   };
 

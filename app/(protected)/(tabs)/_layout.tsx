@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import React from "react";
+import React, { useMemo } from "react";
 import { HapticTab } from "@/components/haptic-tab";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Home, Clock, Gift, User, ShieldCheck } from "lucide-react-native";
@@ -17,7 +17,7 @@ export default function TabLayout() {
   const greenText = "#16a34a"; // text-green-600
   const greenBg = "#dcfce7"; // light green background
 
-  const tabs = [
+  const tabs = useMemo(() => [
     { name: "index", title: "Home", icon: Home },
     { name: "history", title: "History", icon: Clock },
     { 
@@ -26,7 +26,7 @@ export default function TabLayout() {
       icon: isAgent ? ShieldCheck : Gift 
     },
     { name: "profile", title: "Profile", icon: User },
-  ];
+  ], [isAgent]);
 
   return (
     <Tabs

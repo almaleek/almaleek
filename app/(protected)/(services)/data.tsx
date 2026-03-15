@@ -170,7 +170,7 @@ export default function DataPlanScreen() {
 
   // Handle purchase submission
   const handleFormSubmit = async (pin: string) => {
-    if (!selectedPlan || !selectedNetwork) return;
+    if (!selectedPlan || !selectedNetwork || loading) return;
 
     const payload = {
       networkId: selectedNetwork.name.split(" ")[0].toLowerCase(),
@@ -182,11 +182,16 @@ export default function DataPlanScreen() {
       pinCode: pin,
     };
 
+    setLoading(true); // Set loading immediately
+    
     try {
-      setLoading(true);
       const resultAction = await dispatch(purchaseData(payload as any));
       if (purchaseData.fulfilled.match(resultAction)) {
         showToast("Data purchase successful!", "success");
+        // Clear state before navigation
+        setPinVisible(false);
+        setPinCode("");
+        
         router.push({
           pathname: "/(protected)/history/[id]",
           params: { id: resultAction.payload.transactionId },
@@ -194,6 +199,9 @@ export default function DataPlanScreen() {
       } else {
         const transactionId = resultAction.payload?.transactionId;
         if (transactionId) {
+          setPinVisible(false);
+          setPinCode("");
+          
           router.push({
             pathname: "/(protected)/history/[id]",
             params: { id: transactionId },
@@ -202,10 +210,10 @@ export default function DataPlanScreen() {
           showToast(resultAction.payload?.error || "Purchase failed", "error");
         }
       }
+    } catch (error) {
+      showToast("An unexpected error occurred", "error");
     } finally {
       setLoading(false);
-      setPinVisible(false);
-      setPinCode("");
     }
   };
 
@@ -314,8 +322,10 @@ export default function DataPlanScreen() {
           </View>
         )}
 
+        
+
         {/* PIN Modal */}
-        <PinModal
+        <PinModal 
           visible={pinVisible}
           onClose={() => setPinVisible(false)}
           loading={loading}

@@ -9,9 +9,11 @@ import { setTokens, logout } from "@/redux/features/user/userSlice";
 import ApLoader from "@/components/loaders/mainloader";
 import { injectLogoutHandler } from "@/redux/apis/common/aixosInstance";
 
-import { useRouter, Slot } from "expo-router";
+import { useRouter, Stack } from "expo-router";
 import { Provider, useDispatch } from "react-redux";
 import { store } from "@/redux/store";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+
 
 function AppContent() {
   const dispatch = useDispatch();
@@ -19,6 +21,9 @@ function AppContent() {
 
   const [appReady, setAppReady] = useState(false);
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
+
+    // 🔔 Initialize Push Notifications
+  usePushNotifications();
 
  
   useEffect(() => {
@@ -81,7 +86,7 @@ function AppContent() {
 
   // Render Slot (root navigator)
   return (
-    <Slot />
+    <Stack screenOptions={{ headerShown: false }} />
    
   );
 }

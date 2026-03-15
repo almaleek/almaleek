@@ -95,12 +95,12 @@ export default function Profile() {
         {/* Profile Card */}
         <View className="bg-white rounded-3xl p-6 shadow-sm shadow-gray-200 mb-8 items-center border border-gray-100">
           <View className="w-24 h-24 bg-green-100 rounded-full items-center justify-center mb-4 border-4 border-white shadow-sm">
-             <Text className="text-3xl font-bold text-green-700">
-               {user?.firstName?.[0]}{user?.lastName?.[0]}
+             <Text className="text-3xl font-bold text-green-700 uppercase">
+               {user?.firstName?.[0]?.toUpperCase()}{user?.lastName?.[0]?.toUpperCase()}
              </Text>
           </View>
           <Text className="text-xl font-bold text-gray-900 mb-1">
-            {user?.firstName} {user?.lastName}
+            {user?.firstName?.split(" ").map((n: string) => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()).join(" ")} {user?.lastName?.split(" ").map((n: string) => n.charAt(0).toUpperCase() + n.slice(1).toLowerCase()).join(" ")}
           </Text>
           <Text className="text-sm text-gray-500 font-medium mb-4">
             {user?.email}

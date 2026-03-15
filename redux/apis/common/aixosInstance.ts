@@ -1,7 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// const API_URL = "http://10.24.178.142:5000/api";
+// const API_URL = "http://10.124.137.142:5000/api";
 const API_URL = "https://almaleekbe-production-229b.up.railway.app/api"
 
 let isRefreshing = false;
@@ -36,6 +36,13 @@ axiosInstance.interceptors.request.use(async (config) => {
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
+
+  // Idempotency: Add a unique request ID to prevent duplicate processing on backend
+  if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
+    const requestId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    config.headers['X-Request-ID'] = requestId;
+  }
+  
   return config;
 });
 

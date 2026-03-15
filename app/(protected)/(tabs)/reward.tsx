@@ -76,7 +76,7 @@ export default function Reward() {
       </View>
 
       <ScrollView 
-        className="flex-1 px-4 mt-2"
+        className="flex-1 px-4 mt-2 mb-10"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         <View className="bg-white shadow-sm rounded-xl p-5 mb-4 border border-gray-100">
@@ -127,7 +127,7 @@ export default function Reward() {
 
                 <View className="flex-1 bg-indigo-50 p-4 rounded-xl border border-indigo-100 items-center">
                   <Text className="text-gray-500 text-xs font-medium uppercase text-center">
-                    Claim Bonus Count
+                    Claim Bonus
                   </Text>
                   <Text className="text-2xl font-bold text-indigo-700 mt-1">
                     {referralStats?.claimBonusCount || 0}

@@ -172,7 +172,7 @@ export default function TransferScreen() {
   };
 
 const handleTransfer = async (values: any, enteredPin: string) => {
-  if (!enquiryResult?.accountNumber) {
+  if (!enquiryResult?.sourceAccountName) {
     showToast("Please verify account details first", "error");
     return;
   }
@@ -183,14 +183,18 @@ const handleTransfer = async (values: any, enteredPin: string) => {
   }
 
   const payload = {
-    destinationBankCode: values.bankCode,
-    destinationAccountNumber: values.accountNumber,
-    destinationAccountName: enquiryResult.nameOnAccount,
-    amount: Number(values.amount),
-    transactionDescription: values.narration,
-    paymentIdentifier: `TXN-${Date.now()}`,
-    userId: user?._id,
-    pinCode: enteredPin,
+  destinationAccountName:  enquiryResult?.sourceAccountName,
+  destinationBankCode: values.bankCode,
+  destinationAccount: values.accountNumber,
+  sourceAccountName: enquiryResult?.sourceAccountName,
+  sourceAccount: enquiryResult?.sourceAccount,
+  sourceBankCode: enquiryResult?.sourceBankCode,
+  destinationEmail: user?.email, // optional
+  amount: Number(values.amount),
+  transactionDescription: values.narration,
+  paymentIdentifier: `TXN-${Date.now()}`,
+  userId: user?._id,
+  pinCode: enteredPin,
   };
 
   try {
@@ -293,9 +297,7 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                                 <Text className="text-gray-900 font-medium">
                                   {item.bankName}
                                 </Text>
-                                <Text className="text-gray-500 text-xs">
-                                  Code: {item.bankCode}
-                                </Text>
+                              
                               </View>
                             </TouchableOpacity>
                           ))}
@@ -320,14 +322,18 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                         <Text className="text-red-500 text-sm mb-2 -mt-2">
                           {errors.bankCode}
                         </Text>
-                      )}
+                      )} 
 
-                      {enquiryResult && (
+                      {enquiryResult && enquiryResult?.sourceAccountName && (
                         <View className="bg-green-50 p-3 rounded-lg mb-4 flex-row items-center border border-green-200">
+
                           <CheckCircle size={20} color="#16a34a" />
-                          <Text className="ml-2 text-green-700 font-bold uppercase">
-                            {enquiryResult.nameOnAccount}
-                          </Text>
+                          <View className="ml-2">
+                            <Text className="text-green-700 font-bold uppercase">
+                              {enquiryResult.sourceAccountName}
+                            </Text>
+                          
+                          </View>
                         </View>
                       )}
 
@@ -353,7 +359,7 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                       <View className="mb-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
                         <Text className="text-gray-700 font-semibold">Recipient</Text>
                         <Text className="text-gray-900 mt-1">
-                          {enquiryResult?.nameOnAccount || "Unknown"}
+                          {enquiryResult?.sourceAccountName || "Unknown"}
                         </Text>
                         <Text className="text-gray-600">
                           {selectedBank?.bankName || "Bank"} • {values.accountNumber}
@@ -413,7 +419,7 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                           setDetails([
                             { label: "Bank", value: selectedBank?.bankName || values.bankCode },
                             { label: "Account Number", value: values.accountNumber },
-                            { label: "Account Name", value: enquiryResult.nameOnAccount },
+                            { label: "Account Name", value: enquiryResult.sourceAccountName },
                             { label: "Amount", value: `₦${Number(values.amount).toLocaleString()}` },
                             { label: "Narration", value: values.narration },
                           ]);
@@ -478,6 +484,14 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                               setSelectedBank(item);
                               setFieldValue("bankCode", item.bankCode);
                               setBankModalVisible(false);
+                              if (values.accountNumber?.length === 10) {
+                                dispatch(
+                                  performNameEnquiry({
+                                    destinationBankCode: item.bankCode,
+                                    destinationAccountNumber: values.accountNumber,
+                                  })
+                                );
+                              }
                             }}
                           >
                             <BankLogo bankName={item.bankName} bankCode={item.bankCode} size={40} />

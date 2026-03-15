@@ -28,10 +28,6 @@ export default function PasscodeScreen() {
     return await AsyncStorage.getItem("app_passcode");
   };
 
-  const getLockedRoute = async () => {
-    return await AsyncStorage.getItem("locked_route");
-  };
-
   const triggerShake = () => {
     shakeAnim.setValue(0);
     Animated.sequence([
@@ -64,15 +60,9 @@ export default function PasscodeScreen() {
     const pin = enteredCode.join("");
 
     if (savedPasscode === pin) {
-      const lockedRoute = await getLockedRoute();
-
-      if (lockedRoute) {
-        await AsyncStorage.removeItem("locked_route");
-        router.replace(lockedRoute as any);
-      } else {
+      
         router.replace("/(protected)/(tabs)");
-      }
-
+      
       return;
     }
 
@@ -85,7 +75,6 @@ export default function PasscodeScreen() {
       Alert.alert("Too many attempts", "Please log in with your credentials");
       await AsyncStorage.removeItem("locked_route");
       router.replace("/(auth)/signin");
-      console.log(pin, "sigin");
     } else {
       Alert.alert("Wrong PIN", "Please try again");
     }
@@ -130,14 +119,7 @@ export default function PasscodeScreen() {
       });
 
       if (result.success) {
-        const lockedRoute = await getLockedRoute();
-
-        if (lockedRoute) {
-          await AsyncStorage.removeItem("locked_route");
-          router.replace(lockedRoute as any);
-        } else {
-          router.replace("/(protected)/(tabs)");
-        }
+        router.replace("/(protected)/(tabs)");
       } else {
         Alert.alert("Failed", "Authentication failed.");
       }

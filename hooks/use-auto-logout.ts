@@ -1,32 +1,41 @@
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { useRouter, useNavigation, usePathname } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function useAutoLogout(timeout = 60000) {
   const router = useRouter();
   const navigation = useNavigation();
   const pathname = usePathname();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastPathRef = useRef<string | null>(pathname);
+  
+  // Track current path to avoid locking while already locked
+  const currentPathRef = useRef(pathname);
 
   useEffect(() => {
-    lastPathRef.current = pathname;
+    currentPathRef.current = pathname;
   }, [pathname]);
 
   const startTimer = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
+    // Don't start timer if already on passcode or auth screen
+    // We check against the ref to be sure, although pathname effect updates it.
+    // Note: pathname string might vary (e.g. includes params), so checking for substring is safer.
+    if (currentPathRef.current.includes("passcode") || 
+        currentPathRef.current.includes("(auth)")) {
+        return;
+    }
+
     timerRef.current = setTimeout(() => {
       (async () => {
-        try {
-          const routeToSave =
-            lastPathRef.current || "/(protected)/(tabs)";
-          await AsyncStorage.setItem("locked_route", routeToSave);
-        } catch (e) {
-          console.log("Failed to save locked route", e);
+        // Double check inside timeout
+        if (currentPathRef.current.includes("passcode") || 
+            currentPathRef.current.includes("(auth)")) {
+            return;
         }
-        router.replace("/(security)/passcode");
+
+        // Use push to preserve the navigation stack
+        router.push("/(security)/passcode");
       })();
     }, timeout);
   };
@@ -36,6 +45,7 @@ export default function useAutoLogout(timeout = 60000) {
   };
 
   useEffect(() => {
+    // Initial start
     startTimer();
 
     const appStateSub = AppState.addEventListener("change", (state) => {

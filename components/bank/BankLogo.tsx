@@ -37,7 +37,7 @@ export const BankLogo: React.FC<BankLogoProps> = ({
     const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
     // Try to guess domain. Most banks are [name].com or [name]bank.com
     // This is a best-effort. 
-    return `https://logo.clearbit.com/${cleanName}.com`;
+    return `https://img.logo.dev/${cleanName}.com?token=pk_M1HIHuinRWmMAgcU0iUZaQ`;
   };
 
   const logoUrl = url || getLogoUrl(bankName);

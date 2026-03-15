@@ -1,5 +1,6 @@
-import { Slot, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import useAutoLogout from "@/hooks/use-auto-logout";
+import usePushNotifications from "@/hooks/use-push-notifications";
 import React, { useEffect, useState } from "react";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
@@ -8,8 +9,8 @@ import UpdateModal from "@/components/UpdateModal";
 
 export default function ProtectedLayout() {
   useAutoLogout(180000);
-  
-  
+  usePushNotifications();
+
   const [updateVisible, setUpdateVisible] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(false);
   const [storeUrl, setStoreUrl] = useState("");
@@ -19,16 +20,14 @@ export default function ProtectedLayout() {
       try {
         const response = await axiosInstance.get("/auth/settings");
         const settings = response.data;
-        
+
         const currentVersion = Constants.expoConfig?.version || "1.0.0";
         const latestVersion = settings.mobileAppVersion;
-        
+
         if (isUpdateAvailable(currentVersion, latestVersion)) {
           setForceUpdate(settings.forceUpdate);
           setStoreUrl(
-            Platform.OS === "ios" 
-              ? settings.iosAppUrl 
-              : settings.androidAppUrl
+            Platform.OS === "ios" ? settings.iosAppUrl : settings.androidAppUrl
           );
           setUpdateVisible(true);
         }
@@ -42,9 +41,9 @@ export default function ProtectedLayout() {
 
   const isUpdateAvailable = (current: string, latest: string) => {
     if (!latest) return false;
-    const c = current.split('.').map(Number);
-    const l = latest.split('.').map(Number);
-    
+    const c = current.split(".").map(Number);
+    const l = latest.split(".").map(Number);
+
     for (let i = 0; i < Math.max(c.length, l.length); i++) {
       const cv = c[i] || 0;
       const lv = l[i] || 0;
@@ -56,8 +55,8 @@ export default function ProtectedLayout() {
 
   return (
     <>
-      <Slot />
-      <UpdateModal 
+      <Stack screenOptions={{ headerShown: false }} />
+      <UpdateModal
         visible={updateVisible}
         forceUpdate={forceUpdate}
         storeUrl={storeUrl}
