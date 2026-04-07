@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Modal,
   View,
@@ -17,6 +17,9 @@ type PinModalProps = {
   loading?: boolean;
   title?: string;
   details?: { label: string; value: string }[];
+  mode?: "enter" | "create";
+  pinTitle?: string;
+  canClose?: boolean;
 };
 
 export default function PinModal({
@@ -26,24 +29,61 @@ export default function PinModal({
   loading = false,
   title = "Review Transaction",
   details,
+  mode = "enter",
+  pinTitle,
+  canClose = true,
 }: PinModalProps) {
   const [pin, setPin] = useState<string>("");
   const [step, setStep] = useState<1 | 2>(1);
+  const [firstPin, setFirstPin] = useState<string>("");
+  const [pinError, setPinError] = useState<string>("");
+  const wasLoadingRef = useRef(false);
 
   useEffect(() => {
     if (!visible) {
       setPin("");
       setStep(1);
+      setFirstPin("");
+      setPinError("");
     } else {
       setStep(details ? 1 : 2);
+      setPinError("");
     }
   }, [visible, details]);
+
+  useEffect(() => {
+    if (visible && wasLoadingRef.current && !loading) {
+      setPin("");
+      setFirstPin("");
+    }
+    wasLoadingRef.current = loading;
+  }, [loading, visible]);
 
   const handlePress = (num: string) => {
     if (pin.length >= 4 || loading) return;
     const newPin = pin + num;
     setPin(newPin);
-    if (newPin.length === 4) onSubmit(newPin);
+    if (newPin.length !== 4) return;
+
+    if (mode === "create") {
+      if (!firstPin) {
+        setFirstPin(newPin);
+        setPin("");
+        setPinError("");
+        return;
+      }
+      if (firstPin !== newPin) {
+        setFirstPin("");
+        setPin("");
+        setPinError("PINs do not match. Try again.");
+        return;
+      }
+      setPinError("");
+      onSubmit(newPin);
+      return;
+    }
+
+    onSubmit(newPin);
   };
 
   const handleDelete = () => {
@@ -75,17 +115,22 @@ export default function PinModal({
             ) : (
               <View style={{ width: 40 }} />
             )}
-            
-            <TouchableOpacity
-              onPress={() => {
-                if (!loading) onClose();
-                setPin("");
-                setStep(1);
-              }}
-              className="p-2"
-            >
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
+
+            {canClose ? (
+              <TouchableOpacity
+                onPress={() => {
+                  if (!loading) onClose();
+                  setPin("");
+                  setStep(1);
+                  setFirstPin("");
+                }}
+                className="p-2"
+              >
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 40 }} />
+            )}
           </View>
 
           {step === 1 && details ? (
@@ -110,7 +155,9 @@ export default function PinModal({
                 onPress={() => setStep(2)}
                 className="bg-green-600 py-4 rounded-xl items-center shadow-sm active:opacity-90"
               >
-                <Text className="text-white font-bold text-lg">Confirm & Pay</Text>
+                <Text className="text-white font-bold text-lg">
+                  {"Confirm & Pay"}
+                </Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -120,8 +167,16 @@ export default function PinModal({
               <View className="items-center mb-6">
                 <Lock size={36} color="#32d47a" />
                 <Text className="text-green-600 font-semibold text-lg mt-2">
-                  Enter Transaction PIN
+                  {pinTitle ||
+                    (mode === "create"
+                      ? firstPin
+                        ? "Confirm Transaction PIN"
+                        : "Create Transaction PIN"
+                      : "Enter Transaction PIN")}
                 </Text>
+                {pinError ? (
+                  <Text className="text-red-500 text-sm mt-2">{pinError}</Text>
+                ) : null}
 
                 {/* PIN Dots */}
                 <View className="flex-row mt-4 space-x-4">

@@ -2,7 +2,7 @@ import "dotenv/config";
 
 export default {
   "expo": {
-    "name": "almaleek",
+    "name": "Almaleek",
     "slug": "almaleek",
     "owner": "almaleek",
     "version": "1.0.0",
@@ -13,7 +13,11 @@ export default {
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.almaleek.app"
+      "bundleIdentifier": "com.almaleek.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow Almaleek to access your photos to upload product images.",
+        "NSCameraUsageDescription": "Allow Almaleek to use your camera to upload product images."
+      }
     },
     "android": {
       "package": "com.almaleek.app",
@@ -33,6 +37,14 @@ export default {
     "plugins": [
       "expo-router",
       "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Almaleek to access your photos to upload product images.",
+          "cameraPermission": "Allow Almaleek to use your camera to upload product images.",
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-splash-screen",
         {

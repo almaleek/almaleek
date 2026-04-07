@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { currentUser, loginUser, signUpUser, getReferralStats, withdrawBonus } from "./userThunk";
+import { currentUser, loginUser, signUpUser, getReferralStats, withdrawBonus, updateTransactionMessagePreference } from "./userThunk";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { User } from "./type";
@@ -62,6 +62,12 @@ const authSlice = createSlice({
       })
       .addCase(signUpUser.fulfilled, (state, action: PayloadAction<any>) => {
         state.user = action.payload.user;
+        if (action.payload.accessToken && action.payload.refreshToken) {
+          state.accessToken = action.payload.accessToken;
+          state.refreshToken = action.payload.refreshToken;
+          AsyncStorage.setItem("accessToken", action.payload.accessToken);
+          AsyncStorage.setItem("refreshToken", action.payload.refreshToken);
+        }
         state.loading = false;
       })
       .addCase(signUpUser.rejected, (state, action) => {
@@ -136,6 +142,24 @@ const authSlice = createSlice({
         }
       })
       .addCase(withdrawBonus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
+
+    builder
+      .addCase(updateTransactionMessagePreference.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateTransactionMessagePreference.fulfilled, (state, action: PayloadAction<any>) => {
+        state.loading = false;
+        if (state.user) {
+          state.user.transactionMessageEnabled = Boolean(
+            action.payload?.transactionMessageEnabled
+          );
+        }
+      })
+      .addCase(updateTransactionMessagePreference.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

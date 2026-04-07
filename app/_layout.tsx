@@ -1,6 +1,6 @@
 
 
-import React, { useEffect,useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../global.css";
 import { ToastProvider } from "@/components/toast/toastProvider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -10,28 +10,23 @@ import ApLoader from "@/components/loaders/mainloader";
 import { injectLogoutHandler } from "@/redux/apis/common/aixosInstance";
 
 import { useRouter, Stack } from "expo-router";
-import { Provider, useDispatch } from "react-redux";
+import { Provider } from "react-redux";
 import { store } from "@/redux/store";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 
 function AppContent() {
-  const dispatch = useDispatch();
   const router = useRouter();
 
   const [appReady, setAppReady] = useState(false);
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
 
-    // 🔔 Initialize Push Notifications
-  usePushNotifications();
-
  
   useEffect(() => {
     injectLogoutHandler(() => {
-      dispatch(logout());
+      store.dispatch(logout());
       router.replace("/(auth)/signin");
     });
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const loadAppState = async () => {
@@ -49,17 +44,17 @@ function AppContent() {
 
         // 2️⃣ User logged in
         if (accessToken && refreshToken) {
-          dispatch(setTokens({ accessToken, refreshToken }));
-          setInitialRoute("/(security)/passcode");
+          store.dispatch(setTokens({ accessToken, refreshToken }));
+          setInitialRoute(hasPasscode ? "/(security)/passcode" : "/passcode-setup");
           setAppReady(true);
           return;
         }
-        dispatch(logout());
+        store.dispatch(logout());
         setInitialRoute("/(auth)/signin");
         setAppReady(true);
       } catch (err) {
         console.log("App load error:", err);
-        dispatch(logout());
+        store.dispatch(logout());
         setInitialRoute("/(auth)/signin");
         setAppReady(true);
       }
@@ -73,7 +68,7 @@ function AppContent() {
     if (appReady && initialRoute) {
       router.replace(initialRoute as any);
     }
-  }, [appReady, initialRoute]);
+  }, [appReady, initialRoute, router]);
 
 
 

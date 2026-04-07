@@ -29,12 +29,12 @@ import {
   Bolt,
   GraduationCap,
   Tv2,
+  Wallet,
   Receipt,
-  CheckCircle,
-  Clock,
-  XCircle,
+  Smartphone,
   Gift,
   LayoutGrid,
+  ShoppingBag,
   ChevronRight,
   ArrowRight,
   ShieldCheck
@@ -42,24 +42,85 @@ import {
 
 const { width } = Dimensions.get('window');
 
-const STATUS_ICONS: Record<string, any> = {
-  success: <CheckCircle className="text-green-500 w-5 h-5" />,
-  failed: <XCircle className="text-red-500 w-5 h-5" />,
-  pending: <Clock className="text-yellow-500 w-5 h-5" />,
-};
-
 const STATUS_COLORS: Record<string, string> = {
   success: "text-green-600 bg-green-100",
   failed: "text-red-600 bg-red-100",
   pending: "text-yellow-600 bg-yellow-100",
+  refunded: "text-green-600 bg-green-100",
 };
 
-const getStatusIcon = (status: string) =>
-  STATUS_ICONS[status?.toLowerCase()] || STATUS_ICONS.pending;
 const getStatusColor = (status: string) =>
   STATUS_COLORS[status?.toLowerCase()] || STATUS_COLORS.pending;
 const capitalize = (s: string) =>
   s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+
+const getTxnDate = (t: any) =>
+  t?.transaction_date ? new Date(t.transaction_date) : new Date(t?.createdAt);
+
+const getWalletTypeLabel = (tx: any) => {
+  const rawType = String(tx?.transaction_type || "").toLowerCase();
+  if (rawType === "credit_note") return "credit";
+  if (rawType === "debit_note") return "debit";
+  return rawType;
+};
+
+const formatServiceLabel = (raw: string) => {
+  const key = String(raw || "").toLowerCase().trim();
+  if (!key) return "";
+  if (key === "cable_tv" || key === "cable") return "Cable TV";
+  if (key === "exam_pin" || key === "exam") return "Exam";
+  if (key === "data_card") return "Data Card";
+  return key.replace(/_/g, " ");
+};
+
+const parseRefundNote = (note: any) => {
+  const text = String(note || "").trim();
+  if (!text) return null;
+  const serviceMatch = text.match(/refund for\s+(.+?)(?:\s+txid:|\s+ref:|$)/i);
+  const txIdMatch = text.match(/txid:\s*([a-f0-9]{24})/i);
+  const refMatch = text.match(/ref:\s*([a-z0-9_-]+)/i);
+  if (!serviceMatch && !txIdMatch && !refMatch) return null;
+  return {
+    service: serviceMatch?.[1]?.trim() || "",
+    txId: txIdMatch?.[1] || "",
+    ref: refMatch?.[1] || "",
+  };
+};
+
+const iconColors: Record<string, string> = {
+  airtime: "#3b82f6",
+  data: "#10b981",
+  cable: "#f97316",
+  electricity: "#eab308",
+  wallet: "#8b5cf6",
+  transfer: "#ef4444",
+  exam: "#6366f1",
+  default: "#6b7280",
+};
+
+const serviceIcons: Record<string, any> = {
+  airtime: Phone,
+  data: Wifi,
+  cable: Tv2,
+  electricity: Bolt,
+  wallet: Wallet,
+  transfer: Receipt,
+  exam: GraduationCap,
+};
+
+const getServiceIcon = (service: any) => {
+  const key = (service || "").toLowerCase();
+  const normalizedKey = key.includes("exam")
+    ? "exam"
+    : key.includes("cable")
+      ? "cable"
+      : key;
+
+  return {
+    Icon: serviceIcons[normalizedKey] || Smartphone,
+    color: iconColors[normalizedKey] || iconColors.default,
+  };
+};
 
 const QuickActionButton = ({ icon, label, link, bg }: any) => {
   const router = useRouter();
@@ -86,36 +147,98 @@ const QuickActionButton = ({ icon, label, link, bg }: any) => {
   );
 };
 
-const TransactionItem = ({ tx }: { tx: any }) => (
-  <View className="flex-row justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 mb-3 shadow-sm">
-    <View className="flex flex-row items-center gap-3">
-      <View className={`w-10 h-10 rounded-full flex items-center justify-center ${
-        tx.status === 'success' ? 'bg-green-50' : 
-        tx.status === 'failed' ? 'bg-red-50' : 'bg-yellow-50'
-      }`}>
-        {getStatusIcon(tx.status)}
+const TransactionItem = ({ tx }: { tx: any }) => {
+  const service = String(tx?.service || "").toLowerCase();
+  const typeLabel = getWalletTypeLabel(tx);
+  const { Icon, color } = getServiceIcon(service);
+  const refundMeta =
+    service === "wallet" && typeLabel === "refund" ? parseRefundNote(tx?.note) : null;
+  const titleText =
+    service === "wallet"
+      ? refundMeta?.service
+        ? `Refund (${formatServiceLabel(refundMeta.service)})`
+        : (tx?.note ? String(tx.note) : typeLabel || "wallet")
+      : String(tx?.service || "Transaction").replace("_", " ");
+
+  const isWalletCredit =
+    service === "wallet" && (typeLabel === "credit" || typeLabel === "refund");
+  const amountPrefix = isWalletCredit ? "+" : "-";
+  const dt = getTxnDate(tx);
+  const statusLower = String(tx?.status || "").toLowerCase();
+  const messageLower = String(tx?.message || "").toLowerCase();
+  const isFailedRefunded =
+    statusLower === "failed" &&
+    (messageLower.includes("refunded") ||
+      messageLower.includes("refund ref") ||
+      messageLower.includes("refund exists"));
+
+  return (
+    <View className="flex-row justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 mb-3 shadow-sm">
+      <View className="flex flex-row items-center gap-3 flex-1 pr-3">
+        <View
+          className="w-10 h-10 rounded-full items-center justify-center bg-opacity-10"
+          style={{ backgroundColor: `${color}20` }}
+        >
+          <Icon size={20} color={color} strokeWidth={2.5} />
+        </View>
+        <View className="flex-1">
+          <Text className="font-semibold text-gray-900 text-base capitalize">
+            {titleText}
+          </Text>
+          <Text className="text-xs text-gray-500">
+            {dt.toLocaleDateString()} •{" "}
+            {dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </Text>
+          {!!refundMeta?.ref && (
+            <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
+              Ref: {refundMeta.ref}
+            </Text>
+          )}
+          {!!tx?.note && service !== "wallet" && (
+            <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
+              {String(tx.note)}
+            </Text>
+          )}
+        </View>
       </View>
-      <View>
-        <Text className="font-semibold text-gray-900 text-base">{capitalize(tx.service)}</Text>
-        <Text className="text-xs text-gray-500">
-          {new Date(tx.transaction_date).toLocaleDateString()} • {new Date(tx.transaction_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+      <View className="items-end">
+        <Text
+          className={`font-bold text-base ${
+            isWalletCredit ? "text-green-700" : "text-gray-900"
+          }`}
+        >
+          {amountPrefix}₦{Number(tx.amount || 0).toLocaleString()}
         </Text>
+        {isFailedRefunded ? (
+          <View className="flex-row gap-1 mt-1">
+            <Text
+              className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase ${getStatusColor(
+                "failed"
+              )}`}
+            >
+              failed
+            </Text>
+            <Text
+              className={`px-2 py-0.5 rounded text-[10px] font-medium uppercase ${getStatusColor(
+                "refunded"
+              )}`}
+            >
+              refunded
+            </Text>
+          </View>
+        ) : (
+          <Text
+            className={`mt-1 px-2 py-0.5 rounded text-[10px] font-medium uppercase ${getStatusColor(
+              statusLower
+            )}`}
+          >
+            {statusLower}
+          </Text>
+        )}
       </View>
     </View>
-    <View className="items-end">
-      <Text className="font-bold text-base text-gray-900">
-        -₦{Number(tx.amount).toLocaleString()}
-      </Text>
-      <Text
-        className={`mt-1 px-2 py-0.5 rounded text-[10px] font-medium uppercase ${getStatusColor(
-          tx.status
-        )}`}
-      >
-        {tx.status}
-      </Text>
-    </View>
-  </View>
-);
+  );
+};
 
 export default function HomePage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -181,10 +304,10 @@ export default function HomePage() {
     },
     {
       id: 8,
-      icon: <LayoutGrid size={22} color="#fff" />,
+      icon: <ShoppingBag size={22} color="#fff" />,
       bg: "bg-slate-600",
-      label: "More",
-      link: "(protected)/(tabs)/profile",
+      label: "Market",
+      link: "(protected)/marketplace",
     },
   ];
 
@@ -284,7 +407,7 @@ export default function HomePage() {
                     </View>
                     <Text className="text-gray-900 font-semibold mb-1">No Transactions</Text>
                     <Text className="text-xs text-gray-500 text-center">
-                        You haven't made any transactions yet.
+                        {"You haven't made any transactions yet."}
                     </Text>
                     </View>
                 )}

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, TouchableOpacity, ScrollView, Image } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Image, Switch } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { useRouter } from "expo-router";
@@ -7,6 +7,8 @@ import ApHomeHeader from "@/components/headers/homeheader";
 import { logout } from "@/redux/features/user/userSlice";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
 import { useToast } from "@/components/toast/toastProvider";
+import axiosInstance from "@/redux/apis/common/aixosInstance";
+import { updateTransactionMessagePreference } from "@/redux/features/user/userThunk";
 import { 
   Lock, 
   KeyRound, 
@@ -18,14 +20,114 @@ import {
   HeadphonesIcon,
   Bell,
   HelpCircle,
-  FileText
+  FileText,
+  Store
 } from "lucide-react-native";
+
+type ProfileItem =
+  | {
+      id: string;
+      icon: any;
+      label: string;
+      href: string;
+      color: string;
+      kind: "link";
+    }
+  | {
+      id: string;
+      icon: any;
+      label: string;
+      subLabel?: string;
+      color: string;
+      kind: "toggle";
+      value: boolean;
+      loading?: boolean;
+      onToggle: (value: boolean) => void;
+    };
+
+function ProfileRow({ item, onPress }: { item: ProfileItem; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="flex-row items-center p-4 active:bg-gray-50"
+    >
+      <View
+        className="w-10 h-10 rounded-full items-center justify-center mr-4"
+        style={{ backgroundColor: `${item.color}15` }}
+      >
+        <item.icon size={20} color={item.color} strokeWidth={2} />
+      </View>
+
+      <View className="flex-1">
+        <Text className="text-base font-semibold text-gray-800">{item.label}</Text>
+        {"subLabel" in item && item.subLabel ? (
+          <Text className="text-xs text-gray-500 mt-1">{item.subLabel}</Text>
+        ) : null}
+      </View>
+
+      {item.kind === "toggle" ? (
+        <Switch
+          value={item.value}
+          onValueChange={item.onToggle}
+          disabled={Boolean(item.loading)}
+        />
+      ) : (
+        <ChevronRight size={20} color="#d1d5db" />
+      )}
+    </TouchableOpacity>
+  );
+}
 
 export default function Profile() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const { showToast } = useToast();
   const { user } = useSelector((state: RootState) => state.auth);
+  const isAgent = String(user?.role || "").toLowerCase() === "agent";
+  const [transactionMessageCharge, setTransactionMessageCharge] = React.useState<number>(0);
+  const [transactionMessageCompanyName, setTransactionMessageCompanyName] = React.useState<string>("Almaleek");
+  const [updatingTxMsg, setUpdatingTxMsg] = React.useState(false);
+  const [txMsgEnabled, setTxMsgEnabled] = React.useState(Boolean(user?.transactionMessageEnabled));
+
+  React.useEffect(() => {
+    setTxMsgEnabled(Boolean(user?.transactionMessageEnabled));
+  }, [user?.transactionMessageEnabled]);
+
+  React.useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await axiosInstance.get("/auth/settings");
+        const settings = response.data || {};
+        setTransactionMessageCharge(Number(settings.transactionMessageCharge || 0));
+        setTransactionMessageCompanyName(String(settings.transactionMessageCompanyName || "Almaleek"));
+      } catch {
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const handleToggleTransactionMessage = async (enabled: boolean) => {
+    const previousValue = txMsgEnabled;
+    setTxMsgEnabled(enabled);
+
+    try {
+      setUpdatingTxMsg(true);
+      const resultAction = await dispatch(updateTransactionMessagePreference({ enabled }));
+      if (updateTransactionMessagePreference.fulfilled.match(resultAction)) {
+        showToast(
+          enabled ? "Transaction alerts enabled" : "Transaction alerts disabled"
+        );
+      } else {
+        setTxMsgEnabled(previousValue);
+        showToast(resultAction.payload as string, "error");
+      }
+    } catch {
+      setTxMsgEnabled(previousValue);
+      showToast("Unexpected error. Please try again.", "error");
+    } finally {
+      setUpdatingTxMsg(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -46,17 +148,55 @@ export default function Profile() {
           icon: Lock,
           label: "Change Password",
           href: "/(protected)/updatepassword",
-          color: "#3b82f6" // blue
+          color: "#3b82f6", // blue
+          kind: "link"
         },
         {
           id: "2",
           icon: KeyRound,
           label: "Transaction PIN",
           href: "/(protected)/updatepin",
-          color: "#8b5cf6" // violet
+          color: "#8b5cf6", // violet
+          kind: "link"
         },
       ]
     },
+    {
+      title: "Notifications",
+      items: [
+        {
+          id: "txmsg",
+          icon: Bell,
+          label: "Transaction Message",
+          subLabel:
+            transactionMessageCharge > 0
+              ? `Charge ${transactionMessageCharge} per message · powered by ${transactionMessageCompanyName}`
+              : `Free · powered by ${transactionMessageCompanyName}`,
+          color: "#f59e0b",
+          kind: "toggle",
+          value: txMsgEnabled,
+          loading: updatingTxMsg,
+          onToggle: handleToggleTransactionMessage,
+        },
+      ],
+    },
+    ...(isAgent
+      ? [
+          {
+            title: "Marketplace",
+            items: [
+              {
+                id: "m1",
+                icon: Store,
+                label: "My Store",
+                href: "/marketplace/store",
+                color: "#16a34a",
+                kind: "link"
+              },
+            ],
+          },
+        ]
+      : []),
     {
       title: "Support & Legal",
       items: [
@@ -65,7 +205,8 @@ export default function Profile() {
           icon: HeadphonesIcon,
           label: "Contact Support",
           href: "/(protected)/contact",
-          color: "#10b981" // emerald
+          color: "#10b981", // emerald
+          kind: "link"
         },
         // {
         //   id: "4",
@@ -125,24 +266,19 @@ export default function Profile() {
             </Text>
             <View className="bg-white rounded-2xl overflow-hidden shadow-sm shadow-gray-100 border border-gray-100">
               {section.items.map((item, index) => (
-                <TouchableOpacity
+                <View
                   key={item.id}
-                  onPress={() => router.push(item.href as any)}
-                  className={`flex-row items-center p-4 active:bg-gray-50 ${
-                    index !== section.items.length - 1 ? "border-b border-gray-50" : ""
-                  }`}
+                  className={index !== section.items.length - 1 ? "border-b border-gray-50" : ""}
                 >
-                  <View 
-                    className="w-10 h-10 rounded-full items-center justify-center mr-4"
-                    style={{ backgroundColor: `${item.color}15` }}
-                  >
-                    <item.icon size={20} color={item.color} strokeWidth={2} />
-                  </View>
-                  <Text className="flex-1 text-base font-semibold text-gray-800">
-                    {item.label}
-                  </Text>
-                  <ChevronRight size={20} color="#d1d5db" />
-                </TouchableOpacity>
+                  <ProfileRow
+                    item={item as any}
+                    onPress={() => {
+                      if ((item as any).kind === "link") {
+                        router.push((item as any).href as any);
+                      }
+                    }}
+                  />
+                </View>
               ))}
             </View>
           </View>

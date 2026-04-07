@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import { useRouter, useNavigation, usePathname } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function useAutoLogout(timeout = 60000) {
   const router = useRouter();
@@ -35,6 +36,10 @@ export default function useAutoLogout(timeout = 60000) {
         }
 
         // Use push to preserve the navigation stack
+        const lockedRoute = String(currentPathRef.current || "").trim();
+        if (lockedRoute) {
+          await AsyncStorage.setItem("locked_route", lockedRoute);
+        }
         router.push("/(security)/passcode");
       })();
     }, timeout);

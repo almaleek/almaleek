@@ -114,7 +114,9 @@ export default function SignInScreen() {
 
               <View className="px-4">
                 <View className="flex-row justify-center">
-                  <Text className="text-gray-600">Don't have an account? </Text>
+                  <Text className="text-gray-600">
+                    {"Don't have an account? "}
+                  </Text>
                   <TouchableOpacity
                     onPress={() => {
                       router.push("/(auth)/signup");

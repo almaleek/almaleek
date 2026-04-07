@@ -11,6 +11,7 @@ export interface User {
   bonus: number;
   referralCode: string;
   pinStatus: boolean;
+  transactionMessageEnabled?: boolean;
   role:string;
   account?: {
     bankName: string;

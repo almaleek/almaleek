@@ -155,7 +155,7 @@ export default function AirtimeScreen() {
       }
     } finally {
       setLoading(false);
-      // setPinVisible(false);
+      setPinVisible(false);
       setPinCode("");
     }
   };

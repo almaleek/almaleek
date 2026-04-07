@@ -10,11 +10,12 @@ import {
 } from "react-native";
 import { Fingerprint, User as UserIcon } from "lucide-react-native";
 import * as LocalAuthentication from "expo-local-authentication";
-import { Redirect, useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function PasscodeScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const PASSCODE_LENGTH = 4;
   const MAX_ATTEMPTS = 3;
 
@@ -60,9 +61,20 @@ export default function PasscodeScreen() {
     const pin = enteredCode.join("");
 
     if (savedPasscode === pin) {
-      
-        router.replace("/(protected)/(tabs)");
-      
+      const lockedRoute = await AsyncStorage.getItem("locked_route");
+      await AsyncStorage.removeItem("locked_route");
+
+      if (navigation?.canGoBack?.()) {
+        router.back();
+        return;
+      }
+
+      if (lockedRoute) {
+        router.replace(lockedRoute as any);
+        return;
+      }
+
+      router.replace("/(protected)/(tabs)");
       return;
     }
 
@@ -119,6 +131,19 @@ export default function PasscodeScreen() {
       });
 
       if (result.success) {
+        const lockedRoute = await AsyncStorage.getItem("locked_route");
+        await AsyncStorage.removeItem("locked_route");
+
+        if (navigation?.canGoBack?.()) {
+          router.back();
+          return;
+        }
+
+        if (lockedRoute) {
+          router.replace(lockedRoute as any);
+          return;
+        }
+
         router.replace("/(protected)/(tabs)");
       } else {
         Alert.alert("Failed", "Authentication failed.");
@@ -211,7 +236,10 @@ export default function PasscodeScreen() {
 
         <TouchableOpacity
           className="items-center mt-6 mb-20"
-          onPress={() => router.push("/(auth)/signin")}
+          onPress={async () => {
+            await AsyncStorage.removeItem("locked_route");
+            router.push("/(auth)/signin");
+          }}
         >
           <Text className="text-sm text-gray-700 underline">
             Log in using credentials

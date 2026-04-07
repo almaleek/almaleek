@@ -22,8 +22,8 @@ export default function ResetPasswordScreen() {
   //   const email = route.params?.email || "";
   //   const code = route.params?.code || "";
 
-  const email = "abdulalazeezsodiq@gmail.com";
-  const code = "i4i43i";
+  const identifier = "abdulalazeezsodiq@gmail.com";
+  const code = "123456";
 
   const validationSchema = Yup.object({
     newPassword: Yup.string()
@@ -57,7 +57,7 @@ export default function ResetPasswordScreen() {
 
           <Formik
             initialValues={{
-              email,
+              identifier,
               code,
               newPassword: "",
               confirmPassword: "",

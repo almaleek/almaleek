@@ -50,6 +50,29 @@ const TYPE_TO_SERVICES: Record<string, string[]> = {
   other: ["other"],
 };
 
+const formatServiceLabel = (raw: string) => {
+  const key = String(raw || "").toLowerCase().trim();
+  if (!key) return "";
+  if (key === "cable_tv" || key === "cable") return "Cable TV";
+  if (key === "exam_pin" || key === "exam") return "Exam";
+  if (key === "data_card") return "Data Card";
+  return key.replace(/_/g, " ");
+};
+
+const parseRefundNote = (note: any) => {
+  const text = String(note || "").trim();
+  if (!text) return null;
+  const serviceMatch = text.match(/refund for\s+(.+?)(?:\s+txid:|\s+ref:|$)/i);
+  const txIdMatch = text.match(/txid:\s*([a-f0-9]{24})/i);
+  const refMatch = text.match(/ref:\s*([a-z0-9_-]+)/i);
+  if (!serviceMatch && !txIdMatch && !refMatch) return null;
+  return {
+    service: serviceMatch?.[1]?.trim() || "",
+    txId: txIdMatch?.[1] || "",
+    ref: refMatch?.[1] || "",
+  };
+};
+
 export default function HistoryPage() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
@@ -176,7 +199,42 @@ export default function HistoryPage() {
 
   const renderItem = ({ item }: { item: any }) => {
     const { Icon, color } = getServiceIcon(item?.service);
+    const statusLower = String(item?.status || "").toLowerCase();
+    const messageLower = String(item?.message || "").toLowerCase();
+    const isFailedRefunded =
+      statusLower === "failed" &&
+      (messageLower.includes("refunded") ||
+        messageLower.includes("refund ref") ||
+        messageLower.includes("refund exists"));
+    const failedStyle = getStatusStyle("failed");
+    const refundedStyle = getStatusStyle("refund");
     const statusStyle = getStatusStyle(item.status);
+
+    const rawType = String(item?.transaction_type || "").toLowerCase();
+    const typeLabel =
+      rawType === "credit_note"
+        ? "credit"
+        : rawType === "debit_note"
+          ? "debit"
+          : rawType;
+
+    const refundMeta =
+      String(item?.service || "").toLowerCase() === "wallet" && typeLabel === "refund"
+        ? parseRefundNote(item?.note)
+        : null;
+
+    const titleText =
+      String(item?.service || "").toLowerCase() === "wallet"
+        ? refundMeta?.service
+          ? `Refund (${formatServiceLabel(refundMeta.service)})`
+          : (item?.note ? String(item.note) : typeLabel || "wallet")
+        : String(item?.service || "Transaction").replace("_", " ");
+
+    const isWalletCredit =
+      String(item?.service || "").toLowerCase() === "wallet" &&
+      (typeLabel === "credit" || typeLabel === "refund");
+
+    const amountPrefix = isWalletCredit ? "+" : "-";
     
     return (
       <TouchableOpacity
@@ -200,28 +258,55 @@ export default function HistoryPage() {
             </View>
             <View>
                 <Text className="text-base text-gray-900 font-semibold capitalize">
-                {item?.service?.replace('_', ' ') || "Transaction"}
+                {titleText}
                 </Text>
                 <Text className="text-xs text-gray-500">
                     {getTxnDate(item).toLocaleDateString()} • {getTxnDate(item).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </Text>
+                {!!refundMeta?.ref && (
+                  <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
+                    Ref: {refundMeta.ref}
+                  </Text>
+                )}
+              
             </View>
           </View>
 
           <View className="items-end">
-            <Text className="text-base font-bold text-gray-900">
-                -₦{Number(item?.amount || 0).toLocaleString()}
+            <Text
+              className={`text-base font-bold ${
+                isWalletCredit ? "text-green-700" : "text-gray-900"
+              }`}
+            >
+                {amountPrefix}₦{Number(item?.amount || 0).toLocaleString()}
             </Text>
           </View>
         </View>
 
         <View className="flex-row justify-between items-center mt-2 pt-2 border-t border-gray-50">
-            <View className={`flex-row items-center gap-1.5 px-2 py-1 rounded-full ${statusStyle.bg}`}>
-                <View className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
-                <Text className={`text-xs font-medium capitalize ${statusStyle.text}`}>
-                    {item.status}
-                </Text>
-            </View>
+            {isFailedRefunded ? (
+              <View className="flex-row items-center gap-2">
+                <View className={`flex-row items-center gap-1.5 px-2 py-1 rounded-full ${failedStyle.bg}`}>
+                  <View className={`w-1.5 h-1.5 rounded-full ${failedStyle.dot}`} />
+                  <Text className={`text-xs font-medium capitalize ${failedStyle.text}`}>
+                    failed
+                  </Text>
+                </View>
+                <View className={`flex-row items-center gap-1.5 px-2 py-1 rounded-full ${refundedStyle.bg}`}>
+                  <View className={`w-1.5 h-1.5 rounded-full ${refundedStyle.dot}`} />
+                  <Text className={`text-xs font-medium capitalize ${refundedStyle.text}`}>
+                    refunded
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View className={`flex-row items-center gap-1.5 px-2 py-1 rounded-full ${statusStyle.bg}`}>
+                  <View className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot}`} />
+                  <Text className={`text-xs font-medium capitalize ${statusStyle.text}`}>
+                      {String(item?.status || "")}
+                  </Text>
+              </View>
+            )}
 
             <View className="flex-row items-center gap-1">
                 <Text className="text-xs text-gray-400">Bal:</Text>
@@ -289,7 +374,9 @@ export default function HistoryPage() {
                 </View>
                 <Text className="text-lg font-bold text-gray-800 mb-2">No Transactions Found</Text>
                 <Text className="text-sm text-gray-500 text-center leading-5">
-                    We couldn't find any transactions matching your criteria. Try adjusting your filters.
+                    {
+                      "We couldn't find any transactions matching your criteria. Try adjusting your filters."
+                    }
                 </Text>
                 {(activeFiltersCount > 0 || productFilter) && (
                     <TouchableOpacity 

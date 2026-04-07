@@ -97,6 +97,49 @@ export default function TransactionPage() {
     </View>
   );
 
+  const formatServiceLabel = (raw: string) => {
+    const key = String(raw || "").toLowerCase().trim();
+    if (!key) return "";
+    if (key === "cable_tv" || key === "cable") return "Cable TV";
+    if (key === "exam_pin" || key === "exam") return "Exam";
+    if (key === "data_card") return "Data Card";
+    return key.replace(/_/g, " ");
+  };
+
+  const parseRefundNote = (note: any) => {
+    const text = String(note || "").trim();
+    if (!text) return null;
+    const serviceMatch = text.match(/refund for\s+(.+?)(?:\s+txid:|\s+ref:|$)/i);
+    const txIdMatch = text.match(/txid:\s*([a-f0-9]{24})/i);
+    const refMatch = text.match(/ref:\s*([a-z0-9_-]+)/i);
+    if (!serviceMatch && !txIdMatch && !refMatch) return null;
+    return {
+      service: serviceMatch?.[1]?.trim() || "",
+      txId: txIdMatch?.[1] || "",
+      ref: refMatch?.[1] || "",
+    };
+  };
+
+  const getTransactionTypeLabel = () => {
+    const raw = String(transaction?.transaction_type || "").toLowerCase();
+    if (raw === "credit_note") return "credit";
+    if (raw === "debit_note") return "debit";
+    return raw || "wallet";
+  };
+
+  const walletRefundMeta =
+    String(transaction?.service || "").toLowerCase() === "wallet" &&
+    String(transaction?.transaction_type || "").toLowerCase() === "refund"
+      ? parseRefundNote(transaction?.note)
+      : null;
+
+  const walletTypeValue =
+    walletRefundMeta?.service
+      ? `Refund (${formatServiceLabel(walletRefundMeta.service)})`
+      : transaction.note
+        ? String(transaction.note)
+        : getTransactionTypeLabel();
+
   return (
     <ApSafeAreaView>
       <ApHeader
@@ -165,7 +208,29 @@ export default function TransactionPage() {
                   : "N/A"
               }
             />
-            <RenderRow label="Service" value={transaction.service || "N/A"} />
+            <RenderRow
+              label="Service"
+              value={
+                transaction.service === "wallet"
+                  ? "wallet"
+                  : transaction.service || "N/A"
+              }
+            />
+            {transaction.service === "wallet" && (
+              <RenderRow
+                label="Type"
+                value={walletTypeValue}
+              />
+            )}
+            {!!walletRefundMeta?.txId && (
+              <RenderRow label="Related TxId" value={walletRefundMeta.txId} />
+            )}
+            {!!walletRefundMeta?.ref && (
+              <RenderRow label="Related Ref" value={walletRefundMeta.ref} />
+            )}
+            {transaction.note && transaction.service !== "wallet" && (
+              <RenderRow label="Note" value={String(transaction.note)} />
+            )}
 
             {transaction.destination_account_name && (
               <RenderRow label="Beneficiary" value={transaction.destination_account_name} />

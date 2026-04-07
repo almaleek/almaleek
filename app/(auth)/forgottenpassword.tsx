@@ -8,28 +8,40 @@ import { router, useRouter } from "expo-router";
 import { requestPasswordReset } from "@/redux/features/user/userThunk";
 import { AppDispatch } from "@/redux/store";
 import { useDispatch } from "react-redux";
+import { useToast } from "@/components/toast/toastProvider";
 
 const validationSchema = Yup.object({
-  email: Yup.string().email("Invalid email").required("Email is required"),
+  identifier: Yup.string()
+    .required("Email or phone number is required")
+    .test("is-email-or-ng-phone", "Enter a valid email or phone number", (v) => {
+      const value = String(v || "").trim();
+      if (!value) return false;
+      if (value.includes("@")) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.toLowerCase());
+      }
+      return /^(?:\+234|0)[789][01]\d{8}$/.test(value);
+    }),
 });
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
+  const { showToast } = useToast();
 
   const handleSubmit = async (values: any, { setSubmitting }: any) => {
     try {
       const resultAction = await dispatch(requestPasswordReset(values));
       if (requestPasswordReset.fulfilled.match(resultAction)) {
-        // toast.success("✅ Email verified successfully");
+        showToast("Reset code sent", "success");
         router.replace({
-          pathname: `/(auth)/signin`,
-          params: { email: values.email },
+          pathname: "/(auth)/resetpassword",
+                  params: { identifier: values.identifier },
         });
       } else {
-        // toast.error(
-        //   `❌ ${resultAction.payload || "Email verification failed"}`
-        // );
+        showToast(
+          (resultAction.payload as any) || "Failed to send reset code",
+          "error"
+        );
       }
     } finally {
       setSubmitting(false); // stop Formik's loading
@@ -38,7 +50,7 @@ export default function ForgotPasswordScreen() {
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="bg-gray-50">
       <Formik
-        initialValues={{ email: "" }}
+        initialValues={{ identifier: "" }}
         validationSchema={validationSchema}
         onSubmit={handleSubmit}
       >
@@ -56,18 +68,18 @@ export default function ForgotPasswordScreen() {
               Forgot Password
             </Text>
             <Text className="text-gray-600 text-sm mb-6 text-center">
-              Enter your registered email!
+              Enter your registered email or phone number!
             </Text>
 
             <ApTextInput
-              name="email"
-              label="Email Address"
-              placeholder="Enter your email"
-              keyboardType="email-address"
+              name="identifier"
+              label="Email or Phone Number"
+              placeholder="Enter your email or phone number"
+              keyboardType="default"
             />
 
             <ApButton
-              title="Verify"
+              title="Send Reset Code"
               loading={isSubmitting}
               onPress={handleSubmit as any}
             />
@@ -75,7 +87,7 @@ export default function ForgotPasswordScreen() {
             <Text className="text-center mt-2 text-sm">
               Wrong email?{" "}
               <Pressable onPress={() => router.push("/(auth)/signin")}>
-                <Text className="text-blue-600 underline">Sign Up Again</Text>
+                <Text className="text-blue-600 underline">Go to Sign In</Text>
               </Pressable>
             </Text>
           </View>

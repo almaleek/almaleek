@@ -10,9 +10,42 @@ export const signUpUser = createAsyncThunk(
     try {
       const response = await axiosInstance.post("/auth/signup", userData);
 
+      if (response.data?.accessToken && response.data?.refreshToken) {
+        await AsyncStorage.setItem("accessToken", response.data.accessToken);
+        await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
+      }
+
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.error || "Sign up failed");
+    }
+  }
+);
+
+export const requestPhoneOtp = createAsyncThunk(
+  "auth/requestPhoneOtp",
+  async (data: { phone: string }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post("/auth/request-phone-otp", data);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to send OTP"
+      );
+    }
+  }
+);
+
+export const verifyPhoneOtp = createAsyncThunk(
+  "auth/verifyPhoneOtp",
+  async (data: { phone: string; code: string }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post("/auth/verify-phone-otp", data);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to verify OTP"
+      );
     }
   }
 );
@@ -30,7 +63,6 @@ export const loginUser = createAsyncThunk(
       // ✅ Store tokens using AsyncStorage
       await AsyncStorage.setItem("accessToken", response.data.accessToken);
       await AsyncStorage.setItem("refreshToken", response.data.refreshToken);
-      console.log(response.data);
 
       return response.data;
     } catch (error: any) {
@@ -137,7 +169,7 @@ export const getReferralStats = createAsyncThunk(
 // 🟢 PASSWORD RESET REQUEST
 export const requestPasswordReset = createAsyncThunk(
   "auth/requestPasswordReset",
-  async (data: { email: string }, { rejectWithValue }) => {
+  async (data: { identifier: string }, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(
         "/auth/request-password-reset",
@@ -146,7 +178,9 @@ export const requestPasswordReset = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.msg || "Password reset failed"
+        error.response?.data?.error ||
+          error.response?.data?.msg ||
+          "Password reset failed"
       );
     }
   }
@@ -155,7 +189,7 @@ export const requestPasswordReset = createAsyncThunk(
 // 🟢 VERIFY RESET CODE
 export const verifyResetCode = createAsyncThunk(
   "auth/verifyResetCode",
-  async (data: { email: string; code: string }, { rejectWithValue }) => {
+  async (data: { identifier: string; code: string }, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(
         "/auth/verify-reset-code",
@@ -164,7 +198,9 @@ export const verifyResetCode = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.msg || "Code verification failed"
+        error.response?.data?.error ||
+          error.response?.data?.msg ||
+          "Code verification failed"
       );
     }
   }
@@ -173,13 +209,18 @@ export const verifyResetCode = createAsyncThunk(
 // 🟢 RESET PASSWORD
 export const resetPassword = createAsyncThunk(
   "auth/resetPassword",
-  async (data: { email: string; newPassword: string }, { rejectWithValue }) => {
+  async (
+    data: { identifier: string; newPassword: string; code: string },
+    { rejectWithValue }
+  ) => {
     try {
       const response = await axiosInstance.post("/auth/reset-password", data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.msg || "Password reset failed"
+        error.response?.data?.error ||
+          error.response?.data?.msg ||
+          "Password reset failed"
       );
     }
   }
@@ -206,13 +247,43 @@ export const updatePassword = createAsyncThunk(
 // 🟢 UPDATE PIN
 export const updatePin = createAsyncThunk(
   "auth/updatePin",
-  async (data: { oldpin: string; newpin: string }, { rejectWithValue }) => {
+  async (data: { code: string; newpin: string }, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post("/auth/update-pin", data);
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
         error.response?.data?.error || "Update PIN failed"
+      );
+    }
+  }
+);
+
+export const requestUpdatePinOtp = createAsyncThunk(
+  "auth/requestUpdatePinOtp",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post("/auth/request-update-pin-otp");
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to send verification code"
+      );
+    }
+  }
+);
+
+export const updateTransactionMessagePreference = createAsyncThunk(
+  "auth/updateTransactionMessagePreference",
+  async (data: { enabled: boolean }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post("/auth/transaction-message", data);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error ||
+          error.response?.data?.msg ||
+          "Failed to update transaction message preference"
       );
     }
   }

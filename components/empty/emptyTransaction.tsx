@@ -13,7 +13,9 @@ export default function EmptyTransaction() {
       </Text>
 
       <Text className="text-sm text-slate-500 mt-2 text-center max-w-xs">
-        You haven't made any transactions yet. When you do, they’ll appear here.
+        {
+          "You haven't made any transactions yet. When you do, they’ll appear here."
+        }
       </Text>
     </View>
   );
