@@ -19,18 +19,19 @@ export default function useAutoLogout(timeout = 60000) {
   const startTimer = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
-    // Don't start timer if already on passcode or auth screen
-    // We check against the ref to be sure, although pathname effect updates it.
-    // Note: pathname string might vary (e.g. includes params), so checking for substring is safer.
-    if (currentPathRef.current.includes("passcode") || 
+    // Don't start timer if already on biometric or auth screen
+    if (currentPathRef.current.includes("biometric") || 
         currentPathRef.current.includes("(auth)")) {
         return;
     }
 
     timerRef.current = setTimeout(() => {
       (async () => {
+        const biometricEnabled = await AsyncStorage.getItem("biometric_enabled");
+        if (biometricEnabled !== "true") return;
+
         // Double check inside timeout
-        if (currentPathRef.current.includes("passcode") || 
+        if (currentPathRef.current.includes("biometric") || 
             currentPathRef.current.includes("(auth)")) {
             return;
         }
@@ -40,7 +41,7 @@ export default function useAutoLogout(timeout = 60000) {
         if (lockedRoute) {
           await AsyncStorage.setItem("locked_route", lockedRoute);
         }
-        router.push("/(security)/passcode");
+        router.push("/(security)/biometric");
       })();
     }, timeout);
   };

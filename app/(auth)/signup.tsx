@@ -106,11 +106,6 @@ export default function SignupForm() {
     const resultAction = await dispatch(signUpUser(payload));
     if (signUpUser.fulfilled.match(resultAction)) {
       showToast("🎉 Sign-up successful!", "success");
-      const savedPasscode = await AsyncStorage.getItem("app_passcode");
-      if (!savedPasscode) {
-        router.replace("/passcode-setup");
-        return;
-      }
       router.replace("/(protected)/(tabs)");
     } else {
       showToast(resultAction.payload || "Signup failed", "error");

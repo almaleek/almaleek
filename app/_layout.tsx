@@ -4,14 +4,17 @@ import React, { useEffect, useState } from "react";
 import "../global.css";
 import { ToastProvider } from "@/components/toast/toastProvider";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setTokens, logout } from "@/redux/features/user/userSlice";
+import { setTokens, logout, setBiometricEnabled } from "@/redux/features/user/userSlice";
 
 import ApLoader from "@/components/loaders/mainloader";
 import { injectLogoutHandler } from "@/redux/apis/common/aixosInstance";
 
 import { useRouter, Stack } from "expo-router";
-import { Provider } from "react-redux";
-import { store } from "@/redux/store";
+import { Provider, useSelector } from "react-redux";
+import { store, RootState } from "@/redux/store";
+import { fetchGlobalSettings } from "@/redux/features/setting/settingSlice";
+
+
 
 
 function AppContent() {
@@ -20,6 +23,11 @@ function AppContent() {
   const [appReady, setAppReady] = useState(false);
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
 
+  const { settings } = useSelector((state: RootState) => state.setting);
+
+  useEffect(() => {
+    store.dispatch(fetchGlobalSettings());
+  }, []);
  
   useEffect(() => {
     injectLogoutHandler(() => {
@@ -34,7 +42,7 @@ function AppContent() {
         const accessToken = await AsyncStorage.getItem("accessToken");
         const refreshToken = await AsyncStorage.getItem("refreshToken");
         const hasSeen = await AsyncStorage.getItem("hasSeenOnboarding");
-        const hasPasscode = await AsyncStorage.getItem("app_passcode");
+        const biometricEnabled = await AsyncStorage.getItem("biometric_enabled");
 
         if (!hasSeen) {
           setInitialRoute("/onboarding");
@@ -45,7 +53,12 @@ function AppContent() {
         // 2️⃣ User logged in
         if (accessToken && refreshToken) {
           store.dispatch(setTokens({ accessToken, refreshToken }));
-          setInitialRoute(hasPasscode ? "/(security)/passcode" : "/passcode-setup");
+          if (biometricEnabled === "true") {
+            store.dispatch(setBiometricEnabled(true));
+            setInitialRoute("/(security)/biometric");
+          } else {
+            setInitialRoute("/(protected)/(tabs)");
+          }
           setAppReady(true);
           return;
         }
@@ -81,8 +94,9 @@ function AppContent() {
 
   // Render Slot (root navigator)
   return (
-    <Stack screenOptions={{ headerShown: false }} />
-   
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+    </>
   );
 }
 

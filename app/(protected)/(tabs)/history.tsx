@@ -17,6 +17,19 @@ import { useRouter } from "expo-router";
 import { Phone, Wifi, Tv, Wallet, Bolt, Smartphone, GraduationCap } from "lucide-react-native";
 import debounce from "lodash.debounce";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
+import { Image } from "react-native";
+
+const mtnLogo = require("@/assets/images/mtn.png");
+const airtelLogo = require("@/assets/images/airtel.png");
+const gloLogo = require("@/assets/images/glo.jpg");
+const mobile9Logo = require("@/assets/images/9mobile.jpeg");
+
+const networkLogos: Record<string, any> = {
+  mtn: mtnLogo,
+  airtel: airtelLogo,
+  glo: gloLogo,
+  "9mobile": mobile9Logo,
+};
 
 const iconColors: Record<string, string> = {
   airtime: "#3b82f6", // blue-500
@@ -199,6 +212,16 @@ export default function HistoryPage() {
 
   const renderItem = ({ item }: { item: any }) => {
     const { Icon, color } = getServiceIcon(item?.service);
+    const serviceKey = (item?.service || "").toLowerCase();
+    const networkRaw = (item?.network || "").toLowerCase();
+    const networkKey = networkRaw.includes("mtn") ? "mtn" : 
+                       networkRaw.includes("airtel") ? "airtel" : 
+                       networkRaw.includes("glo") ? "glo" : 
+                       networkRaw.includes("9mobile") || networkRaw.includes("etisalat") ? "9mobile" : "";
+                       
+    const isAirtimeOrData = serviceKey.includes("airtime") || serviceKey.includes("data");
+    const logoSource = isAirtimeOrData ? networkLogos[networkKey] : null;
+
     const statusLower = String(item?.status || "").toLowerCase();
     const messageLower = String(item?.message || "").toLowerCase();
     const isFailedRefunded =
@@ -251,10 +274,18 @@ export default function HistoryPage() {
         <View className="flex-row items-center justify-between mb-2">
           <View className="flex-row items-center gap-3">
             <View
-              className="w-10 h-10 rounded-full items-center justify-center bg-opacity-10"
-              style={{ backgroundColor: `${color}20` }}
+              className="w-10 h-10 rounded-full items-center justify-center bg-opacity-10 overflow-hidden"
+              style={{ backgroundColor: logoSource ? "transparent" : `${color}20` }}
             >
-              <Icon size={20} color={color} strokeWidth={2.5} />
+              {logoSource ? (
+                <Image
+                  source={logoSource}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <Icon size={20} color={color} strokeWidth={2.5} />
+              )}
             </View>
             <View>
                 <Text className="text-base text-gray-900 font-semibold capitalize">

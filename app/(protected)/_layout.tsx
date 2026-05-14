@@ -3,9 +3,10 @@ import useAutoLogout from "@/hooks/use-auto-logout";
 import usePushNotifications from "@/hooks/use-push-notifications";
 import React, { useEffect, useState } from "react";
 import Constants from "expo-constants";
-import { Platform } from "react-native";
+import { Button, NativeModules, Platform } from "react-native";
 import axiosInstance from "@/redux/apis/common/aixosInstance";
-import UpdateModal from "@/components/UpdateModal";
+import UpdateModal from "@/components/modals/updateModal";
+
 
 export default function ProtectedLayout() {
   useAutoLogout(180000);
@@ -13,7 +14,11 @@ export default function ProtectedLayout() {
 
   const [updateVisible, setUpdateVisible] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(false);
-  const [storeUrl, setStoreUrl] = useState("");
+  const [latestVersion, setLatestVersion] = useState("");
+  const [androidUrl, setAndroidUrl] = useState("");
+  const [iosUrl, setIosUrl] = useState("");
+
+
 
   useEffect(() => {
     const checkUpdate = async () => {
@@ -22,13 +27,13 @@ export default function ProtectedLayout() {
         const settings = response.data;
 
         const currentVersion = Constants.expoConfig?.version || "1.0.0";
-        const latestVersion = settings.mobileAppVersion;
+        const latestVersion = Platform.OS === "android" ? settings.androidVersion : settings.iosVersion;
 
         if (isUpdateAvailable(currentVersion, latestVersion)) {
           setForceUpdate(settings.forceUpdate);
-          setStoreUrl(
-            Platform.OS === "ios" ? settings.iosAppUrl : settings.androidAppUrl
-          );
+          setLatestVersion(latestVersion);
+          setAndroidUrl(settings.androidAppUrl);
+          setIosUrl(settings.iosAppUrl);
           setUpdateVisible(true);
         }
       } catch (error) {
@@ -56,11 +61,14 @@ export default function ProtectedLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
+      <Button title="Test Overlay" onPress={() => OverlayModule.showOverlay()} />
       <UpdateModal
         visible={updateVisible}
-        forceUpdate={forceUpdate}
-        storeUrl={storeUrl}
         onClose={() => setUpdateVisible(false)}
+        latestVersion={latestVersion}
+        forceUpdate={forceUpdate}
+        androidUrl={androidUrl}
+        iosUrl={iosUrl}
       />
     </>
   );

@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
@@ -16,6 +17,7 @@ import {
   XCircle,
   Download,
   Share2,
+  MessageCircle,
 } from "lucide-react-native";
 import ApScrollView from "@/components/scrollview/scrollview";
 import ApLoader from "@/components/loaders/mainloader";
@@ -87,6 +89,24 @@ export default function TransactionPage() {
       Alert.alert("Error", "Unable to share receipt.");
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleCustomerService = async () => {
+    const phone = "2348162399919"; 
+    const message = `Hello Almaleek Support, help me check this transaction:\n\nReference: ${transaction.reference_no || transaction.client_reference}\nAmount: ${formatCurrency(transaction.amount)}\nDate: ${new Date(transaction.transaction_date).toLocaleString()}\nService: ${transaction.service}\nStatus: ${transaction.status}\n\nThank you!`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        // Fallback for wa.me if canOpenURL fails on some android versions
+        await Linking.openURL(url);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Unable to open WhatsApp.");
     }
   };
 
@@ -302,16 +322,25 @@ export default function TransactionPage() {
             <TouchableOpacity
               onPress={handleShareOnly}
               disabled={processing}
-              className="flex-row items-center bg-blue-600 px-6 py-3 rounded-2xl gap-4 shadow-md"
+              className="flex-1 flex-row items-center justify-center bg-blue-600 px-4 py-4 rounded-2xl gap-2 shadow-md"
             >
               {processing ? (
                 <ActivityIndicator color="white" />
               ) : (
                 <>
-                  <Share2 size={20} color="white" className="mr-2" />
-                  <Text className="text-white font-semibold">Share Receipt</Text>
+                  <Share2 size={20} color="white" />
+                  <Text className="text-white font-semibold">Share</Text>
                 </>
               )}
+            </TouchableOpacity>
+
+            {/* Customer Service */}
+            <TouchableOpacity
+              onPress={handleCustomerService}
+              className="flex-1 flex-row items-center justify-center bg-green-600 px-4 py-4 rounded-2xl gap-2 shadow-md"
+            >
+              <MessageCircle size={20} color="white" />
+              <Text className="text-white font-semibold">Support</Text>
             </TouchableOpacity>
           </View>
         </View>

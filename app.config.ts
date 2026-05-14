@@ -16,7 +16,8 @@ export default {
       "bundleIdentifier": "com.almaleek.app",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow Almaleek to access your photos to upload product images.",
-        "NSCameraUsageDescription": "Allow Almaleek to use your camera to upload product images."
+        "NSCameraUsageDescription": "Allow Almaleek to use your camera to upload product images.",
+        "NSFaceIDUsageDescription": "Allow Almaleek to use Face ID for secure login."
       }
     },
     "android": {

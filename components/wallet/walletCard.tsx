@@ -1,8 +1,13 @@
-import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ToastAndroid, Platform, Alert } from "react-native";
-import { Eye, EyeOff, Plus, History, Copy, Wallet } from "lucide-react-native";
+import React, { useMemo, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ToastAndroid, Platform, Alert, ActivityIndicator } from "react-native";
+import { Eye, EyeOff, Plus, Copy, Wallet, Gift } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Clipboard from "expo-clipboard";
+import { useDispatch } from "react-redux";
+import axiosInstance from "@/redux/apis/common/aixosInstance";
+import { currentUser } from "@/redux/features/user/userThunk";
+import { AppDispatch } from "@/redux/store";
+import { useToast } from "@/components/toast/toastProvider";
 
 interface WalletCardProps {
   user: any;
@@ -15,6 +20,14 @@ export default function WalletCard({
   showBalance,
   toggleBalance,
 }: WalletCardProps) {
+  const dispatch = useDispatch<AppDispatch>();
+  const { showToast } = useToast();
+  const [generating, setGenerating] = useState(false);
+
+  const hasAccount = useMemo(() => {
+    return Boolean(user?.account?.accountNumber);
+  }, [user?.account?.accountNumber]);
+
   const copyToClipboard = async (text: string) => {
     if (!text) return;
     await Clipboard.setStringAsync(text);
@@ -22,6 +35,25 @@ export default function WalletCard({
       ToastAndroid.show("Copied to clipboard", ToastAndroid.SHORT);
     } else {
       Alert.alert("Copied", "Account number copied to clipboard");
+    }
+  };
+
+  const generateAccount = async () => {
+    if (generating) return;
+    setGenerating(true);
+    try {
+      await axiosInstance.post("/auth/generate-account");
+      await dispatch(currentUser()).unwrap();
+      showToast("Account generated successfully", "success");
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.msg ||
+        e?.response?.data?.error ||
+        e?.message ||
+        "Failed to generate account";
+      showToast(String(msg), "error");
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -55,8 +87,8 @@ export default function WalletCard({
           </TouchableOpacity>
         </View>
 
-        {/* Balance */}
-        <View className="mb-6">
+        {/* Balance Row */}
+        <View className="mb-4">
           <Text className="text-4xl font-bold text-white">
             {showBalance
               ? `₦${Number(user?.balance ?? 0).toLocaleString()}`
@@ -64,40 +96,64 @@ export default function WalletCard({
           </Text>
         </View>
 
-        {/* Account Info & Actions Row */}
+        {/* Account Info & Cashback Row */}
         <View className="flex-row justify-between items-end">
           {/* Account Details */}
-          <View>
+          <View className="flex-1">
             <View className="bg-black/20 px-3 py-1.5 rounded-lg flex-row items-center gap-2 self-start mb-2">
                <Text className="text-white/90 text-xs font-medium uppercase tracking-wider">
                 {user?.account?.bankName || "Bank"}
               </Text>
             </View>
-            
-            <TouchableOpacity 
-              activeOpacity={0.7}
-              onPress={() => copyToClipboard(user?.account?.accountNumber)}
-              className="flex-row items-center gap-2"
-            >
-              <Text className="text-white font-bold text-xl tracking-widest">
-                {user?.account?.accountNumber || "Wait..."}
-              </Text>
-              <Copy size={16} color="white" className="opacity-80" />
-            </TouchableOpacity>
-            <Text className="text-white/70 text-xs mt-1">
-              {user?.account?.accountName || "Loading Name..."}
-            </Text>
+
+            {hasAccount ? (
+              <>
+                <TouchableOpacity 
+                  activeOpacity={0.7}
+                  onPress={() => copyToClipboard(user?.account?.accountNumber)}
+                  className="flex-row items-center gap-2"
+                >
+                  <Text className="text-white font-bold text-xl tracking-widest">
+                    {user?.account?.accountNumber}
+                  </Text>
+                  <Copy size={16} color="white" className="opacity-80" />
+                </TouchableOpacity>
+                <Text className="text-white/70 text-xs mt-1">
+                  {user?.account?.accountName || " "}
+                </Text>
+              </>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={generating}
+                onPress={generateAccount}
+                className="bg-white/20 px-4 py-3 rounded-2xl self-start flex-row items-center gap-2"
+              >
+                {generating ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Plus size={16} color="white" />
+                )}
+                <Text className="text-white font-semibold">
+                  {generating ? "Generating..." : "Generate Account"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Action Buttons */}
-          {/* <View className="flex-row gap-3">
-             <TouchableOpacity className="items-center justify-center">
-                <View className="bg-white w-10 h-10 rounded-full items-center justify-center shadow-sm mb-1">
-                   <Plus size={20} color="#166534" />
-                </View>
-                <Text className="text-[10px] text-white font-medium">Add Money</Text>
-             </TouchableOpacity>
-          </View> */}
+          {/* Cashback Details */}
+          <View className="items-end pb-1">
+            <View className="bg-white/20 px-3 py-2 rounded-2xl flex-row items-center gap-2">
+              <View className="flex-row items-center gap-1.5">
+                <Gift size={12} color="white" />
+                <Text className="text-white/90 text-[10px] font-bold uppercase tracking-wider">Cashback</Text>
+              </View>
+              <View className="w-[1px] h-3 bg-white/30" />
+              <Text className="text-white font-bold text-base">
+                {showBalance ? `₦${Number(user?.cashbackBalance ?? 0).toLocaleString()}` : "••••"}
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Decorative Circles */}

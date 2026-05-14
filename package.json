@@ -10,6 +10,7 @@
     "lint": "expo lint",
     "preview": "eas build --platform android --profile preview",
     "dev": "eas build --platform android --profile development",
+    "prod": "eas build --platform android --profile production",
     "push": "eas update --branch preview"
   },
   "dependencies": {

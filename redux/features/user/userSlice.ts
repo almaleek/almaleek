@@ -20,6 +20,7 @@ interface AuthState {
   referralStats: ReferralStats | null;
   loading: boolean;
   error: string | null;
+  biometricEnabled: boolean;
 }
 
 const initialState: AuthState = {
@@ -29,6 +30,7 @@ const initialState: AuthState = {
   referralStats: null,
   loading: false,
   error: null,
+  biometricEnabled: false,
 };
 
 const authSlice = createSlice({
@@ -45,12 +47,17 @@ const authSlice = createSlice({
     setUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
     },
+    setBiometricEnabled: (state, action: PayloadAction<boolean>) => {
+      state.biometricEnabled = action.payload;
+    },
     logout: (state) => {
       state.user = null;
       state.accessToken = null;
       state.refreshToken = null;
+      state.biometricEnabled = false;
       AsyncStorage.removeItem("accessToken");
       AsyncStorage.removeItem("refreshToken");
+      AsyncStorage.removeItem("biometric_enabled");
     },
   },
   extraReducers: (builder) => {
@@ -166,5 +173,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, setTokens, setUser } = authSlice.actions;
+export const { logout, setTokens, setUser, setBiometricEnabled } = authSlice.actions;
 export default authSlice.reducer;

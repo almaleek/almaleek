@@ -47,10 +47,10 @@ export const fetchDataPlans = createAsyncThunk<
   { rejectValue: string }
 >(
   "dataPlans/fetchDataPlans",
-  async ({ network, category }, { rejectWithValue }) => {
+  async ({ network, category, serviceType }, { rejectWithValue }) => {
     try {
       const params = new URLSearchParams();
-      // params.append("serviceType", serviceType);
+      if (serviceType) params.append("serviceType", serviceType);
       if (network) params.append("network", network);
       if (category) params.append("category", category);
 
@@ -303,31 +303,61 @@ export const getDataServices = createAsyncThunk(
   }
 );
 
-export const getCableServices = createAsyncThunk(
-  "services/getCableServices",
+export const getEasyAccessServices = createAsyncThunk(
+  "services/getEasyAccessServices",
+  async (serviceId: string, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get(`/subservices?serviceId=${serviceId}`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to fetch services"
+      );
+    }
+  }
+);
+
+// Fetch plans for a specific subservice
+export const getEasyAccessPlanServices = createAsyncThunk(
+  "services/getEasyAccessPlanServices",
+  async ({ categoryCode, productCode }: { categoryCode: string; productCode: string }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get(`/plans/plans?category=${categoryCode}&network=${productCode}`);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.error || "Failed to fetch plans"
+      );
+    }
+  }
+); 
+
+
+export const getExamServices = createAsyncThunk(
+  "services/getExamServices",
   async (_, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.get("/subservices");
       const allServices = response.data;
 
-      // filter for only data type
-      const dataServices = allServices.filter(
-        (item: any) => item.serviceId?.type === "cable"
+      // Filter for only exam-type services
+      const examServices = allServices.filter(
+        (item: any) => item.serviceId?.type === "exam"
       );
 
-      // image map
+      // Map service names to image paths
       const serviceImages: Record<string, string> = {
-        dstv: "/images/dstv.jpeg",
-        gotv: "/images/gotv.png",
-        startimes: "/images/startime.jpeg",
-        showmax: "/images/showmax.jpg",
+        // jamb: "/images/jamb.png",
+        waec: "/images/weac.jpg",
+        neco: "/images/neco.jpg",
+        nabteb: "/images/nabteb.png",
       };
 
-      // attach images
-      const dataWithImages = dataServices.map((item: any) => {
+      // Attach images to each service
+      const dataWithImages = examServices.map((item: any) => {
         const key = item.name
-          .split(" ")[0]
-          .replace(/[^a-zA-Z0-9]/g, "")
+          .split(" ")[0] // take the first word
+          .replace(/[^a-zA-Z0-9]/g, "") // remove non-alphanumeric
           .toLowerCase();
 
         return {
@@ -339,11 +369,12 @@ export const getCableServices = createAsyncThunk(
       return dataWithImages;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.msg || "Failed to fetch data services!"
+        error.response?.data?.msg || "Failed to fetch exam services!"
       );
     }
   }
 );
+
 
 export const getElectricityServices = createAsyncThunk(
   "services/getElectricityServices",
@@ -396,31 +427,31 @@ export const getElectricityServices = createAsyncThunk(
   }
 );
 
-export const getExamServices = createAsyncThunk(
-  "services/getExamServices",
+export const getCableServices = createAsyncThunk(
+  "services/getCableServices",
   async (_, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.get("/subservices");
       const allServices = response.data;
 
-      // Filter for only exam-type services
-      const examServices = allServices.filter(
-        (item: any) => item.serviceId?.type === "exam"
+      // filter for only data type
+      const dataServices = allServices.filter(
+        (item: any) => item.serviceId?.type === "cable"
       );
 
-      // Map service names to image paths
+      // image map
       const serviceImages: Record<string, string> = {
-        // jamb: "/images/jamb.png",
-        waec: "/images/weac.jpg",
-        neco: "/images/neco.jpg",
-        nabteb: "/images/nabteb.png",
+        dstv: "/images/dstv.jpeg",
+        gotv: "/images/gotv.png",
+        startimes: "/images/startime.jpeg",
+        showmax: "/images/showmax.jpg",
       };
 
-      // Attach images to each service
-      const dataWithImages = examServices.map((item: any) => {
+      // attach images
+      const dataWithImages = dataServices.map((item: any) => {
         const key = item.name
-          .split(" ")[0] // take the first word
-          .replace(/[^a-zA-Z0-9]/g, "") // remove non-alphanumeric
+          .split(" ")[0]
+          .replace(/[^a-zA-Z0-9]/g, "")
           .toLowerCase();
 
         return {
@@ -432,39 +463,7 @@ export const getExamServices = createAsyncThunk(
       return dataWithImages;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.msg || "Failed to fetch exam services!"
-      );
-    }
-  }
-);
-
-
-
-export const getRemitaServices = createAsyncThunk(
-  "services/getRemitaServices",
-  async (id:any, { rejectWithValue }) => {
-    try {
-      const response = await axiosInstance.get(`/services/remita/${id}`);
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to fetch electricity services!"
-      );
-    }
-  }
-);
-
-export const getRemitaPlanServices = createAsyncThunk(
-  "services/getRemitaPlanServices",
-  async ({categoryCode, productCode}:{categoryCode:string,productCode:string}, { rejectWithValue }) => {
-    console.log(categoryCode, productCode, "plan...")
-    try {
-      const response = await axiosInstance.get(`/subservices/remita/plans/${categoryCode}/${productCode}`);
-      console.log(response.data, "....")
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.msg || "Failed to fetch electricity services!"
+        error.response?.data?.msg || "Failed to fetch data services!"
       );
     }
   }
@@ -481,21 +480,21 @@ interface DataPlansState {
   purchaseLoading: boolean;
   purchaseError: string | null;
   dataServices: any[];
+  easyAccessServices: any[];
+  easyAccessPlans: any[];
   cableServices: any[];
   electricityServices: any[];
   examServices: any[];
-  remitaServices:any[];
-  remitaPlans:any[]
 }
 
 const initialState: DataPlansState = {
   plans: [],
   dataServices: [],
+  easyAccessPlans: [],
+  easyAccessServices: [],
   cableServices: [],
   electricityServices: [],
   examServices: [],
-  remitaPlans:[],
-  remitaServices:[],
   loading: false,
   error: null,
   purchaseStatus: null,
@@ -578,24 +577,39 @@ const dataPlansSlice = createSlice({
       .addCase(getDataServices.fulfilled, (state, action) => {
         state.dataServices = action.payload;
       })
-      .addCase(getCableServices.fulfilled, (state, action) => {
+
+        .addCase(getCableServices.fulfilled, (state, action) => {
         state.cableServices = action.payload;
       })
       .addCase(getElectricityServices.fulfilled, (state, action) => {
         state.electricityServices = action.payload;
       })
-      .addCase(getRemitaServices.fulfilled, (state, action) => {
-        state.remitaServices = action.payload.data;
-      })
-      .addCase(getRemitaPlanServices.fulfilled, (state, action) => {
-        // Assuming the response structure has a 'products' or 'data' array
-        state.remitaPlans = action.payload.products || action.payload.data || [];
-      })
       .addCase(getExamServices.fulfilled, (state, action) => {
         state.examServices = action.payload;
+      })
+      .addCase(getEasyAccessServices.fulfilled, (state, action) => {
+        state.easyAccessServices = action.payload;
+      })
+      .addCase(getEasyAccessPlanServices.fulfilled, (state, action) => {
+        state.easyAccessPlans = action.payload.plans;
       });
   },
 });
+
+export const getPlanPrice = (plan: any, userTier?: number) => {
+  if (!plan) return 0;
+  const tier = userTier || 1;
+  switch (tier) {
+    case 1:
+      return plan.tier1Price ?? plan.ourPrice;
+    case 2:
+      return plan.tier2Price ?? plan.ourPrice;
+    case 3:
+      return plan.tier3Price ?? plan.ourPrice;
+    default:
+      return plan.ourPrice;
+  }
+};
 
 export const { clearPlans, clearPurchaseStatus } = dataPlansSlice.actions;
 export default dataPlansSlice.reducer;

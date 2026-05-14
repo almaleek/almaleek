@@ -5,9 +5,26 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Dimensions
+  Dimensions,
+  Image,
+  Platform,
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
+import Constants from "expo-constants";
+import UpdateModal from "@/components/modals/updateModal";
+import { fetchGlobalSettings } from "@/redux/features/setting/settingSlice";
+
+const mtnLogo = require("@/assets/images/mtn.png");
+const airtelLogo = require("@/assets/images/airtel.png");
+const gloLogo = require("@/assets/images/glo.jpg");
+const mobile9Logo = require("@/assets/images/9mobile.jpeg");
+
+const networkLogos: Record<string, any> = {
+  mtn: mtnLogo,
+  airtel: airtelLogo,
+  glo: gloLogo,
+  "9mobile": mobile9Logo,
+};
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -37,7 +54,8 @@ import {
   ShoppingBag,
   ChevronRight,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  LogOut
 } from "lucide-react-native";
 
 const { width } = Dimensions.get('window');
@@ -130,7 +148,7 @@ const QuickActionButton = ({ icon, label, link, bg }: any) => {
       onPress={() => {
         if (link === "logout") {
           dispatch(logout());
-          router.push("/signin");
+          router.push("/(auth)/signin");
         } else {
           router.push(link as never);
         }
@@ -148,7 +166,17 @@ const QuickActionButton = ({ icon, label, link, bg }: any) => {
 };
 
 const TransactionItem = ({ tx }: { tx: any }) => {
+  const router = useRouter();
   const service = String(tx?.service || "").toLowerCase();
+  const networkRaw = (tx?.network || "").toLowerCase();
+  const networkKey = networkRaw.includes("mtn") ? "mtn" : 
+                     networkRaw.includes("airtel") ? "airtel" : 
+                     networkRaw.includes("glo") ? "glo" : 
+                     networkRaw.includes("9mobile") || networkRaw.includes("etisalat") ? "9mobile" : "";
+                     
+  const isAirtimeOrData = service.includes("airtime") || service.includes("data");
+  const logoSource = isAirtimeOrData ? networkLogos[networkKey] : null;
+
   const typeLabel = getWalletTypeLabel(tx);
   const { Icon, color } = getServiceIcon(service);
   const refundMeta =
@@ -173,13 +201,30 @@ const TransactionItem = ({ tx }: { tx: any }) => {
       messageLower.includes("refund exists"));
 
   return (
-    <View className="flex-row justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 mb-3 shadow-sm">
+    <TouchableOpacity
+      onPress={() =>
+        router.push({
+          pathname: "/(protected)/history/[id]",
+          params: { id: tx?._id || tx?.id },
+        } as never)
+      }
+      activeOpacity={0.7}
+      className="flex-row justify-between items-center bg-white p-4 rounded-2xl border border-gray-100 mb-3 shadow-sm mx-0.5"
+    >
       <View className="flex flex-row items-center gap-3 flex-1 pr-3">
         <View
-          className="w-10 h-10 rounded-full items-center justify-center bg-opacity-10"
-          style={{ backgroundColor: `${color}20` }}
+          className="w-10 h-10 rounded-full items-center justify-center bg-opacity-10 overflow-hidden"
+          style={{ backgroundColor: logoSource ? "transparent" : `${color}20` }}
         >
-          <Icon size={20} color={color} strokeWidth={2.5} />
+          {logoSource ? (
+            <Image
+              source={logoSource}
+              className="w-full h-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <Icon size={20} color={color} strokeWidth={2.5} />
+          )}
         </View>
         <View className="flex-1">
           <Text className="font-semibold text-gray-900 text-base capitalize">
@@ -236,7 +281,7 @@ const TransactionItem = ({ tx }: { tx: any }) => {
           </Text>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -244,22 +289,17 @@ export default function HomePage() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const { user } = useSelector((state: RootState) => state.auth);
+  const { settings } = useSelector((state: RootState) => state.setting);
   const { transactions, loading } = useSelector(
     (state: RootState) => state.transactions
   );
 
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const toggleBalance = () => setShowBalance((prev) => !prev);
 
   const actions = [
-    {
-      id: 6,
-      icon: <Send size={22} color="#fff" />,
-      bg: "bg-red-500",
-      label: "Send",
-      link: "(protected)/(services)/transfer",
-    },
     {
       id: 1,
       icon: <Phone size={22} color="#fff" />,
@@ -309,6 +349,13 @@ export default function HomePage() {
       label: "Market",
       link: "(protected)/marketplace",
     },
+    {
+      id: 9,
+      icon: <LogOut size={22} color="#fff" />,
+      bg: "bg-red-500",
+      label: "Logout",
+      link: "logout",
+    },
   ];
 
   const bannerImages = [
@@ -324,6 +371,33 @@ export default function HomePage() {
     }, [dispatch])
   );
 
+  useEffect(() => {
+    dispatch(fetchGlobalSettings());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!settings) return;
+    const currentVersion = Constants.expoConfig?.version || "1.0.0";
+    const latestVersion =
+      Platform.OS === "android" ? settings.androidVersion : settings.iosVersion;
+
+    const compareVersions = (v1: string, v2: string) => {
+      const parts1 = String(v1 || "").split(".").map(Number);
+      const parts2 = String(v2 || "").split(".").map(Number);
+      for (let i = 0; i < 3; i++) {
+        const a = parts1[i] || 0;
+        const b = parts2[i] || 0;
+        if (a > b) return 1;
+        if (a < b) return -1;
+      }
+      return 0;
+    };
+
+    if (latestVersion && compareVersions(currentVersion, latestVersion) < 0) {
+      setShowUpdateModal(true);
+    }
+  }, [settings]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await dispatch(currentUser());
@@ -333,6 +407,20 @@ export default function HomePage() {
 
   return (
     <ApSafeAreaView>
+      {settings && (
+        <UpdateModal
+          visible={showUpdateModal}
+          onClose={() => setShowUpdateModal(false)}
+          latestVersion={
+            Platform.OS === "android"
+              ? settings.androidVersion
+              : settings.iosVersion
+          }
+          forceUpdate={settings.forceUpdate}
+          androidUrl={settings.androidAppUrl}
+          iosUrl={settings.iosAppUrl}
+        />
+      )}
       <AppScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#16a34a" />

@@ -9,10 +9,12 @@ export interface User {
   isVerified: boolean;
   balance: number;
   bonus: number;
+  cashbackBalance: number;
   referralCode: string;
   pinStatus: boolean;
   transactionMessageEnabled?: boolean;
   role:string;
+  pricingTier?: number;
   account?: {
     bankName: string;
     accountNumber: string;

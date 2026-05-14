@@ -8,10 +8,12 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Formik } from "formik";
 import * as Yup from "yup";
+import { BlurView } from "expo-blur";
 
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
 import ApScrollView from "@/components/scrollview/scrollview";
@@ -22,8 +24,8 @@ import ApButton from "@/components/button/button";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import {
-  getRemitaPlanServices,
-  getRemitaServices,
+  getEasyAccessPlanServices,
+  getElectricityServices,
   handleVerifyMeter,
   purchaseElectricity
 
@@ -52,6 +54,9 @@ const ElectricitySchema = Yup.object().shape({
   amount: Yup.number()
     .required("Amount is required")
     .min(100, "Minimum amount is ₦100"),
+  phone: Yup.string()
+    .required("Phone number is required")
+    .matches(/^[0-9]{11}$/, "Enter a valid 11-digit phone number"),
 });
 
 const presetAmounts = ["1000", "2000", "3000", "5000", "10000", "20000"];
@@ -60,6 +65,27 @@ interface CustomerDetails {
   name?: string;
   address?: string;
 }
+
+const styles = StyleSheet.create({
+  loadingOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingCard: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderRadius: 16,
+    backgroundColor: "rgba(17,24,39,0.55)",
+    alignItems: "center",
+    minWidth: 190,
+  },
+  loadingText: {
+    color: "white",
+    marginTop: 12,
+    fontWeight: "600",
+  },
+});
 
 export default function ElectricityScreen() {
   const dispatch = useDispatch<AppDispatch>();
@@ -78,21 +104,23 @@ export default function ElectricityScreen() {
   const [loading, setLoading] = useState(false); // used for both verify & purchase
   const [isMeterVerified, setIsMeterVerified] = useState(false);
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({});
-  const [pinVisible, setPinVisible] = useState(false);
+  const [verifiedMeterNo, setVerifiedMeterNo] = useState("");
   const [pinCode, setPinCode] = useState("");
+  const [pinVisible, setPinVisible] = useState(false);
   const [details, setDetails] = useState<any[]>([]);
-  const {remitaPlans, remitaServices} = useSelector((state:RootState)=>state.easyAccessdataPlans)
+  const {easyAccessPlans, electricityServices} = useSelector((state:RootState)=>state.easyAccessdataPlans)
   const [lastMeter, setLastMeter] = useState("");
+  const [useCashback, setUseCashback] = useState(false);
 
   const { user } = useSelector((state: RootState) => state.auth);
 
   // Load providers once
   useEffect(() => {
-    dispatch(getRemitaServices("1"));
     dispatch(
-      getRemitaPlanServices({ categoryCode: "electricity", productCode: "ibedc" })
+      getElectricityServices()
     );
-  }, [dispatch]);
+  }, [dispatch]); 
+
 
   // Load last used meter number from storage
   useEffect(() => {
@@ -111,24 +139,24 @@ export default function ElectricityScreen() {
 
   // Set IBEDC as default provider when services load
   useEffect(() => {
-    if (!Array.isArray(remitaServices) || remitaServices.length === 0) return;
+    if (!Array.isArray(electricityServices) || electricityServices.length === 0) return;
     if (selectedProvider) return;
 
     const ibedcProvider =
-      remitaServices.find((p: any) => {
+      electricityServices.find((p: any) => {
         const code = (p.code || "").toLowerCase();
         const name = (p.name || "").toLowerCase();
         return code === "ibedc" || name.includes("ibadan");
-      }) || remitaServices[0];
+      }) || electricityServices[0];
 
     setSelectedProvider(ibedcProvider);
-  }, [remitaServices, selectedProvider]);
+  }, [electricityServices, selectedProvider]);
 
-  const plans = Array.isArray(remitaPlans)
-    ? remitaPlans
-    : (remitaPlans as any)?.items || [];
+  const plans = Array.isArray(easyAccessPlans)
+    ? easyAccessPlans
+    : [];
 
-  const remitaPlanCode = plans.find((c: any) =>
+  const easyAccessPlanCode = plans.find((c: any) =>
     c.name?.toLowerCase().includes(selectedTab.toLowerCase())
   )?.code;
 
@@ -142,19 +170,27 @@ export default function ElectricityScreen() {
   const getProviderDisplayName = (name: string) => {
     if (!name) return "";
     const lowerName = name.toLowerCase();
-    if (lowerName.includes("eko")) return "Eko Electricity";
-    if (lowerName.includes("ikeja")) return "Ikeja Electricity";
-    if (lowerName.includes("abuja")) return "Abuja Electricity";
-    if (lowerName.includes("ibadan")) return "Ibadan Electricity";
-    if (lowerName.includes("enugu")) return "Enugu Electricity";
-    if (lowerName.includes("port harcourt") || lowerName.includes("phed"))
-      return "Port Harcourt Electricity";
-    if (lowerName.includes("jos")) return "Jos Electricity";
-    if (lowerName.includes("kaduna")) return "Kaduna Electricity";
-    if (lowerName.includes("kano")) return "Kano Electricity";
-    if (lowerName.includes("benin")) return "Benin Electricity";
-    if (lowerName.includes("yola")) return "Yola Electricity";
-    return name;
+    let displayName = name;
+
+    if (lowerName.includes("eko")) displayName = "Eko Electricity (EKEDC)";
+    else if (lowerName.includes("ikeja")) displayName = "Ikeja Electricity (IKEDC)";
+    else if (lowerName.includes("abuja")) displayName = "Abuja Electricity (AEDC)";
+    else if (lowerName.includes("ibadan")) displayName = "Ibadan Electricity (IBEDC)";
+    else if (lowerName.includes("enugu")) displayName = "Enugu Electricity (EEDC)";
+    else if (lowerName.includes("port harcourt") || lowerName.includes("phed"))
+      displayName = "Port Harcourt Electricity (PHED)";
+    else if (lowerName.includes("jos")) displayName = "Jos Electricity (JEDC)";
+    else if (lowerName.includes("kaduna")) displayName = "Kaduna Electricity (KAEDCO)";
+    else if (lowerName.includes("kano")) displayName = "Kano Electricity (KEDCO)";
+    else if (lowerName.includes("benin")) displayName = "Benin Electricity (BEDC)";
+    else if (lowerName.includes("yola")) displayName = "Yola Electricity (YEDC)";
+    
+    // Ensure it ends with Electricity if not already there
+    if (!displayName.toLowerCase().includes("electricity")) {
+        displayName += " Electricity";
+    }
+    
+    return displayName;
   };
 
   //
@@ -172,14 +208,16 @@ export default function ElectricityScreen() {
   ) => {
     if (!values.meterno) {
       showToast("Enter meter number first", "error");
-      return;
+      return { ok: false as const };
     }
     setLoading(true);
     try {
+      const companyCode = (selectedProvider?.code || "ibedc").toLowerCase();
+      const companyKey = companyCode.endsWith("electric") ? companyCode : `${companyCode}electric`;
+
       const payload = {
-        productCode:remitaPlanCode,
-        company: selectedProvider?.code + "electric" || "ibedc",
-        metertype: (values.metertype || selectedTab).toLowerCase() === "prepaid" ? "01" : "02",
+        company: companyKey,
+        metertype: (values.metertype || selectedTab).toLowerCase() === "prepaid" ? "prepaid" : "postpaid",
         meterno: values.meterno,
         amount: values.amount ? Number(values.amount) : 1000,
       };
@@ -187,21 +225,27 @@ export default function ElectricityScreen() {
       const resultAction = await dispatch(handleVerifyMeter(payload));
 
       if (handleVerifyMeter.fulfilled.match(resultAction)) {
-        const res = resultAction.payload.data || {};
-        console.log(res, "the response")
+        const res = resultAction.payload || {};
+        
+        // Extract from nested structure if present (EasyAccess format)
+        const content = res?.message?.content || res?.content;
+        
         const name =
-          res?.customerName ||
-          res?.nameOnAccount ||
-          res?.Customer_Name ||
+          content?.Customer_Name ||
+          content?.Name ||
+          res?.customer_name ||
           res?.name ||
           "";
+          
         const address =
+          content?.Address ||
+          content?.Customer_Address ||
           res?.address ||
-          res?.data?.Address ||
-          res?.Address ||
           "";
+
         setCustomerDetails({ name, address });
         setIsMeterVerified(true);
+        setVerifiedMeterNo(values.meterno);
         try {
           await AsyncStorage.setItem("last_meter_number", values.meterno);
           setLastMeter(values.meterno);
@@ -209,15 +253,14 @@ export default function ElectricityScreen() {
           console.log("Error saving last meter number", e);
         }
         showToast("✅ Meter number verified successfully!", "success");
+        return { ok: true as const, name, address };
       } else {
-        const errPayload = resultAction.payload as any;
-        const errorMessage =
-          errPayload?.message || "Verification failed from provider";
+        const errorMessage = resultAction.payload as string || "Verification failed";
         showToast(errorMessage, "error");
         setCustomerDetails({});
         setIsMeterVerified(false);
-        setFieldValue?.("amount", "");
-        setFieldValue?.("metertype", "");
+        setVerifiedMeterNo("");
+        return { ok: false as const };
       }
     } catch (err: any) {
       console.error("verifyMeter error:", err);
@@ -227,9 +270,54 @@ export default function ElectricityScreen() {
       );
       setCustomerDetails({});
       setIsMeterVerified(false);
+      setVerifiedMeterNo("");
+      return { ok: false as const };
     } finally {
       setLoading(false);
     }
+  };
+
+  const openPaymentReview = async (values: any) => {
+    const meterNo = String(values?.meterno || "").trim();
+    const phone = String(values?.phone || "").trim();
+    const amountNumber = Number(values?.amount);
+
+    if (!meterNo) {
+      showToast("Enter meter number first", "error");
+      return;
+    }
+    if (!/^[0-9]{11}$/.test(phone)) {
+      showToast("Enter a valid 11-digit phone number", "error");
+      return;
+    }
+    if (!Number.isFinite(amountNumber) || amountNumber < 100) {
+      showToast("Enter a valid amount (minimum ₦100)", "error");
+      return;
+    }
+
+    const needsVerify =
+      !isMeterVerified || !verifiedMeterNo || verifiedMeterNo !== meterNo;
+
+    let verifiedName = customerDetails.name || "";
+    let verifiedAddress = customerDetails.address || "";
+
+    if (needsVerify) {
+      const v = await verifyMeter({ ...values, meterno: meterNo, phone, amount: amountNumber });
+      if (!v.ok) return;
+      verifiedName = v.name || "";
+      verifiedAddress = v.address || "";
+    }
+
+    setPinVisible(true);
+    setDetails([
+      { label: "Provider", value: getProviderDisplayName(selectedProvider?.name || "") },
+      { label: "Meter Number", value: meterNo },
+      { label: "Meter Type", value: values.metertype || selectedTab },
+      { label: "Customer Name", value: verifiedName },
+      { label: "Address", value: verifiedAddress },
+      { label: "Phone", value: phone },
+      { label: "Amount", value: `₦${amountNumber.toLocaleString()}` },
+    ]);
   };
 
   const handlePurchase = async (values: any, enteredPin: string) => {
@@ -241,15 +329,19 @@ export default function ElectricityScreen() {
       showToast("Please enter a valid 4-digit PIN", "error");
       return;
     }
+
+    const companyCode = (selectedProvider?.code || "").toLowerCase();
+    const companyKey = companyCode.endsWith("electric") ? companyCode : `${companyCode}electric`;
+
     const payload = {
-      productCode:remitaPlanCode,
-      discoCode: selectedProvider?.code || "",
+      company: companyKey,
       meterNumber: values.meterno,
       meterType:
-        (values.metertype || selectedTab).toLowerCase() === "prepaid" ? "01" : "02",
+        (values.metertype || selectedTab).toLowerCase() === "prepaid" ? "prepaid" : "postpaid",
       amount: Number(values.amount),
       pinCode: enteredPin,
       phone: values.phone,
+      useCashback,
     };
     try {
       setLoading(true);
@@ -257,19 +349,28 @@ export default function ElectricityScreen() {
       if (purchaseElectricity.fulfilled.match(result)) {
         showToast("Electricity purchase successful!", "success");
         router.push({
-          pathname: "/(protected)/history/[id]",
-          params: { id: result.payload.transactionId },
+          pathname: "/(protected)/(services)/success",
+          params: { 
+            status: "success",
+            service: "Electricity",
+            network: getProviderDisplayName(selectedProvider?.name || ""),
+            amount: values.amount,
+            transactionId: result.payload.transactionId 
+          },
         });
       } else {
-        const txId = result.payload?.transactionId;
-        if (txId) {
-          router.push({
-            pathname: "/(protected)/history/[id]",
-            params: { id: txId },
-          });
-        } else {
-          showToast(result.payload?.error || "Purchase failed", "error");
-        }
+        const txId = (result.payload as any)?.transactionId;
+        router.push({
+          pathname: "/(protected)/(services)/success",
+          params: { 
+            status: "failed",
+            service: "Electricity",
+            network: getProviderDisplayName(selectedProvider?.name || ""),
+            amount: values.amount,
+            message: (result.payload as any)?.error || "Purchase failed",
+            transactionId: txId || ""
+          },
+        });
       }
     } finally {
       setLoading(false);
@@ -293,7 +394,7 @@ export default function ElectricityScreen() {
     if (setFieldValue) setFieldValue("company", provider.name || provider);
     if (planId) setSelectedPlanId(planId);
     dispatch(
-      getRemitaPlanServices({
+      getEasyAccessPlanServices({
         categoryCode: "electricity",
         productCode: provider.code,
       })
@@ -312,26 +413,11 @@ export default function ElectricityScreen() {
             company: selectedProvider?.name || "",
             metertype: selectedTab,
             amount: "",
-            phone: "",
+            phone: (user as any)?.phoneNumber || (user as any)?.phone || "",
           }}
           validationSchema={ElectricitySchema}
           enableReinitialize
-          onSubmit={(values) => {
-            // On "Pay Now" we simply open the PIN modal (if meter verified). The actual purchase will run when PIN entered.
-            if (!isMeterVerified) {
-              showToast("Please verify your meter number first!", "error");
-              return;
-            }
-            setPinVisible(true);
-            setDetails([
-              { label: "Provider", value: selectedProvider?.name || "" },
-              { label: "Meter Number", value: values.meterno },
-              { label: "Meter Type", value: values.metertype || selectedTab },
-              { label: "Customer Name", value: customerDetails.name },
-              { label: "Address", value: customerDetails.address },
-              { label: "Amount", value: `₦${Number(values.amount).toLocaleString()}` },
-            ]);
-          }}
+          onSubmit={openPaymentReview}
         >
           
           {({
@@ -347,25 +433,28 @@ export default function ElectricityScreen() {
             
               {/* PROVIDER SELECTION */}
               <TouchableOpacity
-                className="mx-4 mt-4 p-4 border border-gray-300 rounded-xl flex-row gap-4 items-center"
+                className="mx-4 mt-4 p-4 border border-gray-300 rounded-xl flex-row justify-between items-center"
                 onPress={openProviderModal}
               >
-                <Image
-                  source={
-                    selectedProvider
-                      ? electricityLogos[
-                          formatProvider(selectedProvider.name)
-                        ] || electricityLogos.default
-                      : electricityLogos.default
-                  }
-                  style={{ width: 35, height: 35, borderRadius: 8 }}
-                />
+                <View className="flex-row items-center gap-4">
+                  <Image
+                    source={
+                      selectedProvider
+                        ? electricityLogos[
+                            formatProvider(selectedProvider.name)
+                          ] || electricityLogos.default
+                        : electricityLogos.default
+                    }
+                    style={{ width: 35, height: 35, borderRadius: 8 }}
+                  />
 
-                <Text className="text-gray-700 font-semibold text-base">
-                  {selectedProvider
-                    ? getProviderDisplayName(selectedProvider.name)
-                    : "Select Provider"}
-                </Text>
+                  <Text className="text-gray-700 font-semibold text-base">
+                    {selectedProvider
+                      ? getProviderDisplayName(selectedProvider.name)
+                      : "Select Provider"}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-down" size={20} color="gray" />
               </TouchableOpacity>
 
               {/* Prepaid / Postpaid Tabs */}
@@ -376,6 +465,9 @@ export default function ElectricityScreen() {
                     onPress={() => {
                       setSelectedTab(tab as any);
                       setFieldValue("metertype", tab);
+                      setIsMeterVerified(false);
+                      setCustomerDetails({});
+                      setVerifiedMeterNo("");
                     }}
                     className={`flex-1 p-3 rounded-xl ${
                       selectedTab === tab ? "bg-green-600" : ""
@@ -401,7 +493,12 @@ export default function ElectricityScreen() {
                 <View className="flex-row items-center border border-gray-300 rounded-xl px-3">
                   <TextInput
                     value={values.meterno}
-                    onChangeText={handleChange("meterno")}
+                    onChangeText={(text) => {
+                      setIsMeterVerified(false);
+                      setCustomerDetails({});
+                      setVerifiedMeterNo("");
+                      setFieldValue("meterno", text);
+                    }}
                     onBlur={handleBlur("meterno")}
                     keyboardType="numeric"
                     placeholder="Enter meter number"
@@ -411,27 +508,34 @@ export default function ElectricityScreen() {
                 </View>
                 {touched.meterno && errors.meterno && (
                   <Text className="text-red-500 text-xs mt-1">
-                    {errors.meterno}
+                    {String(errors.meterno)}
                   </Text>
                 )}
               </View>
 
-              {/* Verify / Proceed */}
-              <TouchableOpacity
-                className="mx-4 mt-3 bg-green-600 p-3 rounded-xl"
-                onPress={() => {
-                  // if (!values.amount) {
-                  //   showToast("Please enter amount before verifying", "error");
-                  //   return;
-                  // }
-                  verifyMeter(values, setFieldValue);
-                }}
-                disabled={loading}
-              >
-                <Text className="text-center text-white font-semibold">
-                  {loading ? "Checking..." : "Verify Meter"}
+              {/* Phone Number Input */}
+              <View className="mx-4 mt-4">
+                <Text className="text-gray-500 mb-1">
+                  Phone Number
                 </Text>
-              </TouchableOpacity>
+
+                <View className="flex-row items-center border border-gray-300 rounded-xl px-3">
+                  <TextInput
+                    value={values.phone}
+                    onChangeText={handleChange("phone")}
+                    onBlur={handleBlur("phone")}
+                    keyboardType="numeric"
+                    placeholder="Enter phone number"
+                    className="flex-1 py-3 text-lg"
+                  />
+                  <Ionicons name="call-outline" size={22} color="gray" />
+                </View>
+                {touched.phone && errors.phone && (
+                  <Text className="text-red-500 text-xs mt-1">
+                    {String(errors.phone)}
+                  </Text>
+                )}
+              </View>
 
               {/* Customer details after verification */}
               {isMeterVerified && customerDetails.name && (
@@ -453,9 +557,11 @@ export default function ElectricityScreen() {
                   {presetAmounts.map((amt) => (
                     <TouchableOpacity
                       key={amt}
-                      onPress={() => {
+                      onPress={async () => {
+                        if (loading) return;
                         setSelectedAmount(amt);
                         setFieldValue("amount", amt);
+                        await openPaymentReview({ ...values, amount: amt });
                       }}
                       className={`w-[30%] p-6 rounded-xl mb-3 border ${
                         selectedAmount === amt
@@ -501,14 +607,15 @@ export default function ElectricityScreen() {
                 />
               </View>
 
-              {/* Pay Now */}
-              <View className="mx-4 mb-6">
+              {/* Submit Button */}
+              <View className="px-4 mt-8 mb-10">
                 <ApButton
-                  title="Pay Now"
+                  title="Pay Bill"
                   onPress={() => {
                     // run Formik validation, then onSubmit: open PIN modal if verified
                     handleSubmit();
                   }}
+                  loading={loading}
                 />
               </View>
               <PinModal
@@ -516,6 +623,9 @@ export default function ElectricityScreen() {
                 loading={loading}
                 title="Review Electricity Payment"
                 details={details}
+                useCashback={useCashback}
+                setUseCashback={setUseCashback}
+                cashbackBalance={(user as any)?.cashbackBalance ?? 0}
                 onClose={() => {
                   if (!loading) setPinVisible(false);
                 }}
@@ -526,16 +636,21 @@ export default function ElectricityScreen() {
               />
 
               {/* Provider Modal */}
-              <Modal visible={providerModal} transparent animationType="slide">
-                <View className="flex-1 bg-black/40 justify-end">
-                  <View className="bg-white p-5 rounded-t-3xl max-h-[70%]">
-                    <Text className="font-bold text-xl mb-3">
-                      Select Provider
-                    </Text>
+              <Modal visible={providerModal} transparent animationType="fade">
+                <View className="flex-1 bg-black/40 justify-center items-center px-4">
+                  <View className="bg-white rounded-2xl w-full max-h-[70%] p-5">
+                    <View className="flex-row justify-between items-center mb-4">
+                      <Text className="text-xl font-bold text-gray-900">
+                        Select Provider
+                      </Text>
+                      <TouchableOpacity onPress={closeProviderModal}>
+                        <Ionicons name="close-circle" size={28} color="#374151" />
+                      </TouchableOpacity>
+                    </View>
 
-                    <ScrollView>
-                      {Array.isArray(remitaServices) &&
-                        remitaServices.map((item: any) => {
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                      {Array.isArray(electricityServices) &&
+                        electricityServices.map((item: any) => {
                         const formatted = formatProvider(
                           item.code || item.name ||
                           ""
@@ -546,7 +661,7 @@ export default function ElectricityScreen() {
                         return (
                           <TouchableOpacity
                             key={item.code || item._id || item.name}
-                            className="flex-row items-center p-3 border-b border-gray-300 "
+                            className="flex-row items-center p-4 border-b border-gray-100 "
                             onPress={() =>
                               handleSelectProvider(item, setFieldValue)
                             }
@@ -559,49 +674,41 @@ export default function ElectricityScreen() {
                                 borderRadius: 50,
                               }}
                             />
-                            <Text className="ml-3 text-base font-semibold">
-                              {getProviderDisplayName(
-                                item.name || item.providerName || item.code
-                              )}
-                            </Text>
+                            <View className="ml-4 flex-1">
+                                <Text className="text-lg font-semibold text-gray-800">
+                                {getProviderDisplayName(
+                                    item.name || item.providerName || item.code
+                                )}
+                                </Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={18} color="#ccc" />
                           </TouchableOpacity>
                         );
                       })}
                     </ScrollView>
-
-                    <TouchableOpacity
-                      className="mt-4 bg-red-500 p-3 rounded-xl"
-                      onPress={closeProviderModal}
-                    >
-                      <Text className="text-center text-white font-semibold">
-                        Close
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                 </View>
               </Modal>
 
-              {/* Fullscreen loader overlay (covers screen and modals) */}
-              {loading && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: "rgba(0,0,0,0.35)",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    zIndex: 9999,
-                  }}
-                >
-                  <ActivityIndicator size="large" color="#32d47a" />
-                  <Text style={{ color: "white", marginTop: 12 }}>
-                    Processing...
-                  </Text>
+              <Modal
+                visible={loading}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                onRequestClose={() => {}}
+              >
+                <View style={styles.loadingOverlay}>
+                  <BlurView
+                    intensity={35}
+                    tint="dark"
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                  <View style={styles.loadingCard}>
+                    <ActivityIndicator size="large" color="#32d47a" />
+                    <Text style={styles.loadingText}>Processing...</Text>
+                  </View>
                 </View>
-              )}
+              </Modal>
             </>
           )}
         </Formik>
