@@ -10,6 +10,7 @@ import { AppDispatch, RootState } from "@/redux/store";
 import PinModal from "@/components/modals/pinModal";
 import { addPin, currentUser } from "@/redux/features/user/userThunk";
 
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets(); // safe area for bottom navigation

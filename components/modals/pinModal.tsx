@@ -20,6 +20,9 @@ type PinModalProps = {
   mode?: "enter" | "create";
   pinTitle?: string;
   canClose?: boolean;
+  useCashback?: boolean;
+  setUseCashback?: (val: boolean) => void;
+  cashbackBalance?: number;
 };
 
 export default function PinModal({
@@ -32,6 +35,9 @@ export default function PinModal({
   mode = "enter",
   pinTitle,
   canClose = true,
+  useCashback,
+  setUseCashback,
+  cashbackBalance = 0,
 }: PinModalProps) {
   const [pin, setPin] = useState<string>("");
   const [step, setStep] = useState<1 | 2>(1);
@@ -150,6 +156,34 @@ export default function PinModal({
                   </View>
                 ))}
               </View>
+
+              {/* Cashback Toggle */}
+              {setUseCashback && (
+                <View className="mb-6">
+                  <TouchableOpacity
+                    onPress={() => setUseCashback(!useCashback)}
+                    className="flex-row items-center bg-green-50 p-4 rounded-xl border border-green-200"
+                  >
+                    <View
+                      className={`w-6 h-6 rounded-md border items-center justify-center ${
+                        useCashback ? "bg-green-600 border-green-600" : "bg-white border-gray-300"
+                      }`}
+                    >
+                      {useCashback && (
+                        <Ionicons name="checkmark" size={16} color="white" />
+                      )}
+                    </View>
+                    <View className="ml-3 flex-1">
+                      <Text className="text-gray-800 font-semibold">
+                        Use Cashback Balance
+                      </Text>
+                      <Text className="text-gray-500 text-xs">
+                        Available: ₦{cashbackBalance.toLocaleString()}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <TouchableOpacity
                 onPress={() => setStep(2)}

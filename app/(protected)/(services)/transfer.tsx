@@ -77,6 +77,7 @@ export default function TransferScreen() {
   const [pinCode, setPinCode] = useState("");
   const [details, setDetails] = useState<any[]>([]);
   const [pendingValues, setPendingValues] = useState<any>(null);
+  const [useCashback, setUseCashback] = useState(false);
   const amountlists = [
     { label: "₦1,000", value: "1000" },
     { label: "₦2,000", value: "2000" },
@@ -111,13 +112,23 @@ export default function TransferScreen() {
 
         if (txId) {
           router.push({
-            pathname: "/(protected)/history/[id]",
-            params: { id: String(txId) },
+            pathname: "/(protected)/(services)/success",
+            params: { 
+              status: "success",
+              service: "Transfer",
+              amount: pendingValues?.amount || "",
+              transactionId: String(txId)
+            },
           });
         } else {
           router.push({
-            pathname: "/(protected)/history/[id]",
-            params: { id: String(txId) },
+            pathname: "/(protected)/(services)/success",
+            params: { 
+              status: "success",
+              service: "Transfer",
+              amount: pendingValues?.amount || "",
+              transactionId: String(txId)
+            },
           });
         }
       } finally {
@@ -129,6 +140,18 @@ export default function TransferScreen() {
       }
     } else if (transferError && !handledOnceRef.current) {
       handledOnceRef.current = true;
+      
+      router.push({
+        pathname: "/(protected)/(services)/success",
+        params: { 
+          status: "failed",
+          service: "Transfer",
+          amount: pendingValues?.amount || "",
+          message: String(transferError),
+          transactionId: ""
+        },
+      });
+
       dispatch(clearTransfer());
       handledOnceRef.current = false;
     }
@@ -195,26 +218,34 @@ const handleTransfer = async (values: any, enteredPin: string) => {
   paymentIdentifier: `TXN-${Date.now()}`,
   userId: user?._id,
   pinCode: enteredPin,
+  useCashback,
   };
 
   try {
-    const result = await dispatch(initiateTransfer(payload));
+    const result = await dispatch(initiateTransfer(payload as any));
 
     if (initiateTransfer.fulfilled.match(result)) {
       router.push({
-        pathname: "/(protected)/history/[id]",
-        params: { id: result.payload.transactionId },
+        pathname: "/(protected)/(services)/success",
+        params: { 
+          status: "success",
+          service: "Transfer",
+          amount: values.amount,
+          transactionId: result.payload.transactionId 
+        },
       });
     } else {
       const transactionId = (result.payload as any)?.transactionId;
-      if (transactionId) {
-        router.push({
-          pathname: "/(protected)/history/[id]",
-          params: { id: transactionId },
-        });
-      } else {
-        showToast((result.payload as any)?.error || "Transfer failed", "error");
-      }
+      router.push({
+        pathname: "/(protected)/(services)/success",
+        params: { 
+          status: "failed",
+          service: "Transfer",
+          amount: values.amount,
+          message: (result.payload as any)?.error || "Transfer failed",
+          transactionId: transactionId || ""
+        },
+      });
     }
   } finally {
     setPinVisible(false);
@@ -319,8 +350,8 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                         <ChevronDown size={20} color="#6b7280" />
                       </TouchableOpacity>
                       {touched.bankCode && errors.bankCode && (
-                        <Text className="text-red-500 text-sm mb-2 -mt-2">
-                          {errors.bankCode}
+                        <Text className="text-red-500 text-xs mt-1">
+                          {String(errors.bankCode)}
                         </Text>
                       )} 
 
@@ -440,69 +471,68 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                   {/* Bank Selection Modal */}
                   <Modal
                     visible={bankModalVisible}
-                    animationType="slide"
-                    presentationStyle="pageSheet"
+                    animationType="fade"
+                    transparent
                   >
-                    <View className="flex-1 bg-white pt-6">
-                      <View className="px-4 pb-2 border-b border-gray-100 flex-row items-center">
-                        <View className="flex-1 flex-row items-center bg-gray-100 rounded-lg px-3 py-2">
+                    <View className="flex-1 bg-black/40 justify-center items-center px-4">
+                      <View className="bg-white rounded-2xl w-full max-h-[85%] p-5">
+                        <View className="flex-row justify-between items-center mb-4">
+                          <Text className="text-xl font-bold text-gray-900">Select Bank</Text>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setBankModalVisible(false);
+                              setSearchText("");
+                            }}
+                          >
+                            {/* <X size={24} color="#374151" /> */}
+                          </TouchableOpacity>
+                        </View>
+
+                        <View className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2 mb-4">
                           <Search size={20} color="#9ca3af" />
                           <TextInput
                             placeholder="Search bank"
-                            className="ml-2 flex-1 text-base"
+                            className="ml-2 flex-1 text-base py-1"
                             value={searchText}
                             onChangeText={(newText) => {
                               setSearchText(newText);
-                              const match = bankList.find(
-                                (b: any) =>
-                                  String(b.bankCode).toLowerCase() === newText.toLowerCase()
-                              );
-                              if (match) {
-                                setSelectedBank(match);
-                                setFieldValue("bankCode", match.bankCode);
-                                setBankModalVisible(false);
-                              }
                             }}
                             autoFocus
                           />
                         </View>
-                        <TouchableOpacity
-                          onPress={() => setBankModalVisible(false)}
-                          className="ml-4"
-                        >
-                          <Text className="text-blue-600 font-medium">Cancel</Text>
-                        </TouchableOpacity>
-                      </View>
 
-                      <FlatList
-                        data={filteredBanks}
-                        keyExtractor={(item) => item.bankCode}
-                        renderItem={({ item }) => (
-                          <TouchableOpacity
-                            className="p-4 border-b border-gray-100 active:bg-gray-50 flex-row items-center gap-4"
-                            onPress={() => {
-                              setSelectedBank(item);
-                              setFieldValue("bankCode", item.bankCode);
-                              setBankModalVisible(false);
-                              if (values.accountNumber?.length === 10) {
-                                dispatch(
-                                  performNameEnquiry({
-                                    destinationBankCode: item.bankCode,
-                                    destinationAccountNumber: values.accountNumber,
-                                  })
-                                );
-                              }
-                            }}
-                          >
-                            <BankLogo bankName={item.bankName} bankCode={item.bankCode} size={40} />
-                            <View className="flex-1">
-                              <Text className="text-base text-gray-900 font-medium">
-                                {item.bankName}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-                        )}
-                      />
+                        <FlatList
+                          data={filteredBanks}
+                          showsVerticalScrollIndicator={false}
+                          keyExtractor={(item) => item.bankCode}
+                          renderItem={({ item }) => (
+                            <TouchableOpacity
+                              className="py-4 border-b border-gray-100 flex-row items-center gap-4"
+                              onPress={() => {
+                                setSelectedBank(item);
+                                setFieldValue("bankCode", item.bankCode);
+                                setBankModalVisible(false);
+                                setSearchText("");
+                                if (values.accountNumber?.length === 10) {
+                                  dispatch(
+                                    performNameEnquiry({
+                                      destinationBankCode: item.bankCode,
+                                      destinationAccountNumber: values.accountNumber,
+                                    })
+                                  );
+                                }
+                              }}
+                            >
+                              <BankLogo bankName={item.bankName} bankCode={item.bankCode} size={40} />
+                              <View className="flex-1">
+                                <Text className="text-lg text-gray-800 font-semibold">
+                                  {item.bankName}
+                                </Text>
+                              </View>
+                            </TouchableOpacity>
+                          )}
+                        />
+                      </View>
                     </View>
                   </Modal>
                 </View>
@@ -516,6 +546,9 @@ const handleTransfer = async (values: any, enteredPin: string) => {
             loading={transferLoading}
             title="Review Transfer"
             details={details}
+            useCashback={useCashback}
+            setUseCashback={setUseCashback}
+            cashbackBalance={user?.cashbackBalance ?? 0}
             onClose={() => {
               if (!transferLoading) setPinVisible(false);
             }}

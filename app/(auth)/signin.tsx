@@ -1,8 +1,8 @@
-import React from "react";
-import { View, Text, Image, TouchableOpacity, ScrollView } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
-import { Mail, Lock } from "lucide-react-native";
+import { Mail, Lock, UserCircle } from "lucide-react-native";
 import ApTextInput from "@/components/textInput/textInput";
 import ApButton from "@/components/button/button";
 import { useRouter } from "expo-router";
@@ -19,25 +19,33 @@ export default function SignInScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const { showToast } = useToast();
 
-  const handleSubmit = async (values: any, { setSubmitting }:any) => {
+  const [savedIdentifier, setSavedIdentifier] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const loadSavedId = async () => {
+      try {
+        const id = await AsyncStorage.getItem("saved_user_identifier");
+        if (id) {
+          setSavedIdentifier(id);
+        }
+      } catch (err) {
+        console.error("Error loading saved identifier", err);
+      } finally {
+        setIsReady(true);
+      }
+    };
+    loadSavedId();
+  }, []);
+
+  const handleSubmit = async (values: any, { setSubmitting }: any) => {
     try {
       const resultAction = await dispatch(
         loginUser({ identifier: values.identifier, password: values.password })
       );
 
       if (loginUser.fulfilled.match(resultAction)) {
-        const savedPasscode = await AsyncStorage.getItem("app_passcode");
-
-        const biometricEnabled = await AsyncStorage.getItem(
-          "biometric_enabled"
-        );
-        console.log(savedPasscode, biometricEnabled);
-
-        if (!savedPasscode) {
-          router.replace("/passcode-setup");
-          return;
-        }
-
+        await AsyncStorage.setItem("saved_user_identifier", values.identifier);
         router.replace("/(protected)/(tabs)");
       } else {
         showToast(resultAction.payload || "Login failed", "error");
@@ -46,22 +54,41 @@ export default function SignInScreen() {
       console.log(err);
       showToast("Login failed");
     } finally {
-      setSubmitting(false); // ✅ Important!
+      setSubmitting(false);
     }
   };
+
+  const handleSwitchAccount = async (setFieldValue: any) => {
+    try {
+      await AsyncStorage.removeItem("saved_user_identifier");
+      setSavedIdentifier(null);
+      setFieldValue("identifier", "");
+    } catch (err) {
+      console.error("Error switching account", err);
+    }
+  };
+
+  if (!isReady) {
+    return (
+      <View className="flex-1 justify-center items-center bg-gray-50">
+        <ActivityIndicator size="large" color="#16a34a" />
+      </View>
+    );
+  }
 
   return (
     <ApSafeAreaView>
       <ApKeyboardWrapper>
         <Formik
-          initialValues={{ identifier: "", password: "" }}
+          initialValues={{ identifier: savedIdentifier || "", password: "" }}
+          enableReinitialize
           validationSchema={Yup.object({
             identifier: Yup.string().required("Required"),
             password: Yup.string().min(6, "Too short").required("Required"),
           })}
           onSubmit={handleSubmit}
         >
-          {({ handleSubmit, isSubmitting }) => (
+          {({ handleSubmit, isSubmitting, values, setFieldValue }) => (
             <View className="flex-1 bg-gray-50 justify-center">
               <View className="mx-2 mb-8 bg-white rounded-2xl p-6 shadow-xl">
                 <View className="items-center mb-6">
@@ -70,23 +97,38 @@ export default function SignInScreen() {
                     className="w-24 h-24"
                     resizeMode="contain"
                   />
-                  {/* <Text className="mt-4 text-2xl font-extrabold text-gray-900 "> */}
                   <Text className="text-gray-500 mt-4 font-extrabold text-2xl text-center">
-
                     Welcome Back
                   </Text>
                   <Text className="text-gray-500 mt-1 text-center">
-                    Sign in to continue
+                    {savedIdentifier ? "Sign in to your account" : "Sign in to continue"}
                   </Text>
                 </View>
 
-                <ApTextInput
-                  name="identifier"
-                  label="Email or Phone Number"
-                  placeholder="Enter your email or phone number"
-                  icon={<Mail size={20} />}
-                  keyboardType="default"
-                />
+                {savedIdentifier ? (
+                  <View className="mb-6 items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <UserCircle size={48} color="#16a34a" />
+                    <Text className="text-lg font-bold text-gray-800 mt-2">
+                      {savedIdentifier}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => handleSwitchAccount(setFieldValue)}
+                      className="mt-2"
+                    >
+                      <Text className="text-green-600 font-semibold">
+                        Not you? Use another account
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <ApTextInput
+                    name="identifier"
+                    label="Email or Phone Number"
+                    placeholder="Enter your email or phone number"
+                    icon={<Mail size={20} />}
+                    keyboardType="default"
+                  />
+                )}
 
                 <ApTextInput
                   name="password"
@@ -133,3 +175,4 @@ export default function SignInScreen() {
     </ApSafeAreaView>
   );
 }
+

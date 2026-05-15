@@ -112,6 +112,17 @@ export default function Reward() {
               )}
             </View>
           </View>
+
+          {/* Cashback Balance Card */}
+          <View className="mt-3 bg-purple-50 p-4 rounded-xl border border-purple-100 items-center">
+            <Text className="text-gray-500 text-xs font-medium uppercase text-center">Cashback Balance</Text>
+            <Text className="text-2xl font-bold text-purple-700 mt-1">
+              ₦{user?.cashbackBalance?.toLocaleString() || 0}
+            </Text>
+            <Text className="text-purple-600 text-[10px] mt-1 text-center italic">
+              Use this balance during checkout for any service.
+            </Text>
+          </View>
           
           {isAgent && (
             <>

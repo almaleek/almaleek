@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Formik } from "formik";
 import * as Yup from "yup";
@@ -8,9 +8,12 @@ import ApHeader from "@/components/headers/header";
 import ApTextInput from "@/components/textInput/textInput";
 import ApButton from "@/components/button/button";
 import ApScrollView from "@/components/scrollview/scrollview";
-import NetworkPhonePicker from "@/components/network/networkPicker";
+import NetworkPhonePicker, {
+  saveRecentPhoneNumber,
+} from "@/components/network/networkPicker";
 import BannerCarousel from "@/components/carousel/banner";
 import PinModal from "@/components/modals/pinModal";
+import { detectNetworkName } from "@/utils/networkDetector";
 
 import {
   getDataServices,
@@ -18,44 +21,9 @@ import {
 } from "@/redux/features/easyAccess/service";
 import { AppDispatch, RootState } from "@/redux/store";
 import { useDispatch, useSelector } from "react-redux";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { useToast } from "@/components/toast/toastProvider";
-
-// DEFAULT NETWORKS
-const networks = [
-  {
-    name: "MTN",
-    logo: require("../../../assets/images/mtn.png"),
-    prefixes: [
-      "0803",
-      "0806",
-      "0703",
-      "0706",
-      "0813",
-      "0816",
-      "0810",
-      "0903",
-      "0906",
-      "0913",
-      "0916",
-    ],
-  },
-  {
-    name: "Airtel",
-    logo: require("../../../assets/images/airtel.png"),
-    prefixes: [
-      "0802",
-      "0808",
-      "0708",
-      "0812",
-      "0701",
-      "0902",
-      "0907",
-      "0901",
-      "0912",
-    ],
-  },
-];
 
 // QUICK AMOUNT BUTTONS
 const amounts = [
@@ -82,20 +50,48 @@ const schema = Yup.object().shape({
 });
 
 export default function AirtimeScreen() {
-  const [selectedNetwork, setSelectedNetwork] = useState(networks[0]);
   const [pinVisible, setPinVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pinCode, setPinCode] = useState("");
   const [details, setDetails] = useState<any[]>([]);
+  const [useCashback, setUseCashback] = useState(false);
+
+  const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
+  const { showToast } = useToast();
 
   const { user } = useSelector((state: RootState) => state.auth);
   const { dataServices } = useSelector(
     (state: RootState) => state.easyAccessdataPlans
   );
 
-  const dispatch = useDispatch<AppDispatch>();
-  const router = useRouter();
-  const { showToast } = useToast();
+  const [selectedNetwork, setSelectedNetwork] = useState<{
+    name: string;
+    image: any;
+  } | null>(null);
+
+  const defaultNetwork =
+    dataServices?.length > 0
+      ? (() => {
+          const defaultService =
+            dataServices.find((s: any) => s.name.toLowerCase() === "mtn") ||
+            dataServices[0];
+          return {
+            name: defaultService.name,
+            image:
+              defaultService.image ||
+              require("../../../assets/images/mtn.png"),
+          };
+        })()
+      : null;
+
+  const displayedNetwork = selectedNetwork || defaultNetwork;
+
+  useEffect(() => {
+    if (!selectedNetwork && defaultNetwork) {
+      setSelectedNetwork(defaultNetwork);
+    }
+  }, [defaultNetwork, selectedNetwork]);
 
   const banners = [
     require("../../../assets/images/banner1.png"),
@@ -105,9 +101,21 @@ export default function AirtimeScreen() {
 
   // Auto-detect network
   const detectNetwork = (phone: string) => {
-    const prefix = phone.slice(0, 4);
-    const found = networks.find((net) => net.prefixes.includes(prefix));
-    if (found) setSelectedNetwork(found);
+    const networkName = detectNetworkName(phone);
+    if (networkName && dataServices.length) {
+      const found = dataServices.find((s: any) => 
+        s.name.toLowerCase().includes(networkName.toLowerCase())
+      );
+      if (found) {
+        const nextNetwork = {
+          name: found.name,
+          image: found.image || require("../../../assets/images/mtn.png"),
+        };
+        if (nextNetwork.name !== selectedNetwork?.name) {
+          setSelectedNetwork(nextNetwork);
+        }
+      }
+    }
   };
 
   // Load list from backend
@@ -118,6 +126,10 @@ export default function AirtimeScreen() {
   );
 
   const handleAirtimeSubmit = async (values: any, enteredPin: string) => {
+    if (!displayedNetwork) {
+      showToast("Please select a network", "error");
+      return;
+    }
     if (!values.amount || !values.phone) {
       showToast("Please enter phone and amount", "error");
       return;
@@ -128,30 +140,43 @@ export default function AirtimeScreen() {
     }
     const payload = {
       ...values,
-      networkId: selectedNetwork.name.replace(/\s+.*/, "").toUpperCase(),
+      networkId: displayedNetwork.name.replace(/\s+.*/, "").toUpperCase(),
       userId: user?._id,
       amount: Number(values.amount),
       pinCode: enteredPin,
+      useCashback,
     };
     try {
       setLoading(true);
       const result = await dispatch(purchaseAirtime(payload as any));
       if (purchaseAirtime.fulfilled.match(result)) {
+        saveRecentPhoneNumber({ userId: user?._id, phone: values.phone }).catch(
+          () => {}
+        );
         showToast("Airtime purchase successful!", "success");
         router.push({
-          pathname: "/(protected)/history/[id]",
-          params: { id: result.payload.transactionId },
+          pathname: "/(protected)/(services)/success",
+          params: { 
+            status: "success",
+            service: "Airtime",
+            network: selectedNetwork?.name,
+            amount: values.amount,
+            transactionId: result.payload.transactionId 
+          },
         });
       } else {
         const transactionId = result.payload?.transactionId;
-        if (transactionId) {
-          router.push({
-            pathname: "/(protected)/history/[id]",
-            params: { id: transactionId },
-          });
-        } else {
-          showToast(result.payload?.error || "Purchase failed", "error");
-        }
+        router.push({
+          pathname: "/(protected)/(services)/success",
+          params: { 
+            status: "failed",
+            service: "Airtime",
+            network: selectedNetwork?.name,
+            amount: values.amount,
+            message: result.payload?.error || "Purchase failed",
+            transactionId: transactionId || ""
+          },
+        });
       }
     } finally {
       setLoading(false);
@@ -182,8 +207,12 @@ export default function AirtimeScreen() {
               showToast("Please enter phone and amount", "error");
               return;
             }
+            if (!displayedNetwork) {
+              showToast("Please select a network", "error");
+              return;
+            }
             setDetails([
-              { label: "Network", value: selectedNetwork.name },
+              { label: "Network", value: displayedNetwork.name },
               { label: "Phone Number", value: values.phone },
               { label: "Amount", value: `₦${values.amount}` },
             ]);
@@ -193,16 +222,22 @@ export default function AirtimeScreen() {
           {({ handleSubmit, values, setFieldValue, errors, touched }) => (
             <>
               {/* Phone + Network picker */}
-              <NetworkPhonePicker
-                selectedNetwork={selectedNetwork as any}
-                setSelectedNetwork={(net) => setSelectedNetwork(net as any)}
-                phone={values.phone}
-                setPhone={(num: string) => {
-                  setFieldValue("phone", num);
-                  detectNetwork(num);
-                }}
-                networks={dataServices}
-              />
+              {displayedNetwork && (
+                <NetworkPhonePicker
+                  selectedNetwork={displayedNetwork}
+                  setSelectedNetwork={(net) => setSelectedNetwork(net)}
+                  phone={values.phone}
+                  setPhone={(num: string) => {
+                    setFieldValue("phone", num);
+                    detectNetwork(num);
+                  }}
+                  networks={dataServices.map((s: any) => ({
+                    name: s.name,
+                    image: s.image || require("../../../assets/images/mtn.png"),
+                  }))}
+                  userId={user?._id}
+                />
+              )}
 
               {/* QUICK AMOUNTS */}
               <View className="px-4 mt-6">
@@ -219,8 +254,12 @@ export default function AirtimeScreen() {
                       }`}
                       onPress={() => {
                         setFieldValue("amount", item.value);
+                        if (!displayedNetwork) {
+                          showToast("Please select a network", "error");
+                          return;
+                        }
                         setDetails([
-                          { label: "Network", value: selectedNetwork.name },
+                          { label: "Network", value: displayedNetwork.name },
                           { label: "Phone Number", value: values.phone },
                           { label: "Amount", value: `₦${item.value}` },
                         ]);
@@ -243,17 +282,14 @@ export default function AirtimeScreen() {
                 name="amount"
                 placeholder="Enter Amount"
                 keyboardType="numeric"
+                label="Amount"
               />
-              {touched.amount && errors.amount && (
-                <Text className="text-red-500 mt-1">{errors.amount}</Text>
-              )}
 
-              {/* PROCEED BUTTON */}
-              <View className="px-4 mt-4 mb-8">
+              <View className="px-4 mt-4 mb-10">
                 <ApButton
-                  title="Proceed to Pay"
+                  title="Buy Now"
                   onPress={handleSubmit as any}
-                  disabled={loading}
+                  loading={loading}
                 />
               </View>
               <PinModal
@@ -262,6 +298,9 @@ export default function AirtimeScreen() {
                 loading={loading}
                 title="Review Airtime Purchase"
                 details={details}
+                useCashback={useCashback}
+                setUseCashback={setUseCashback}
+                cashbackBalance={user?.cashbackBalance ?? 0}
                 onSubmit={(pin) => {
                   setPinCode(pin);
                   handleAirtimeSubmit(values, pin);

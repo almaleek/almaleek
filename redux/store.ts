@@ -7,6 +7,7 @@ import marketplaceProductsReducer from "./features/marketplace/productsSlice";
 import marketplaceChatReducer from "./features/marketplace/chatSlice";
 import easyAccessdataPlansReducer from "./features/easyAccess/service"; // Assuming you have this reducer imported
 import remitaReducer from "./features/remita/remitaSlice";
+import settingReducer from "./features/setting/settingSlice";
 
 // Combine reducers
 const rootReducer = combineReducers({
@@ -18,6 +19,7 @@ const rootReducer = combineReducers({
   marketplaceChat: marketplaceChatReducer,
   easyAccessdataPlans: easyAccessdataPlansReducer, // Assuming you have this reducer imported
   remita: remitaReducer,
+  setting: settingReducer,
 });
 
 // Create store

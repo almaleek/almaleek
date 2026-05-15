@@ -4,11 +4,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { useRouter } from "expo-router";
 import ApHomeHeader from "@/components/headers/homeheader";
-import { logout } from "@/redux/features/user/userSlice";
+import { logout, setBiometricEnabled } from "@/redux/features/user/userSlice";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
 import { useToast } from "@/components/toast/toastProvider";
 import axiosInstance from "@/redux/apis/common/aixosInstance";
 import { updateTransactionMessagePreference } from "@/redux/features/user/userThunk";
+import * as LocalAuthentication from "expo-local-authentication";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { 
   Lock, 
   KeyRound, 
@@ -21,7 +23,8 @@ import {
   Bell,
   HelpCircle,
   FileText,
-  Store
+  Store,
+  Fingerprint
 } from "lucide-react-native";
 
 type ProfileItem =
@@ -82,15 +85,17 @@ export default function Profile() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const { showToast } = useToast();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { user, biometricEnabled } = useSelector((state: RootState) => state.auth);
   const isAgent = String(user?.role || "").toLowerCase() === "agent";
   const [transactionMessageCharge, setTransactionMessageCharge] = React.useState<number>(0);
   const [transactionMessageCompanyName, setTransactionMessageCompanyName] = React.useState<string>("Almaleek");
   const [updatingTxMsg, setUpdatingTxMsg] = React.useState(false);
-  const [txMsgEnabled, setTxMsgEnabled] = React.useState(Boolean(user?.transactionMessageEnabled));
+  const [txMsgEnabled, setTxMsgEnabled] = React.useState(
+    user?.transactionMessageEnabled === true
+  );
 
   React.useEffect(() => {
-    setTxMsgEnabled(Boolean(user?.transactionMessageEnabled));
+    setTxMsgEnabled(user?.transactionMessageEnabled === true);
   }, [user?.transactionMessageEnabled]);
 
   React.useEffect(() => {
@@ -100,11 +105,46 @@ export default function Profile() {
         const settings = response.data || {};
         setTransactionMessageCharge(Number(settings.transactionMessageCharge || 0));
         setTransactionMessageCompanyName(String(settings.transactionMessageCompanyName || "Almaleek"));
+
+        const bio = await AsyncStorage.getItem("biometric_enabled");
+        if (bio === "true") {
+          dispatch(setBiometricEnabled(true));
+        }
       } catch {
       }
     };
     loadSettings();
   }, []);
+
+  const handleToggleBiometric = async (enabled: boolean) => {
+    if (enabled) {
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+
+        if (!hasHardware || !enrolled) {
+          showToast("Biometrics not available on this device", "error");
+          return;
+        }
+
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: "Confirm Biometric Activation",
+        });
+
+        if (result.success) {
+          await AsyncStorage.setItem("biometric_enabled", "true");
+          dispatch(setBiometricEnabled(true));
+          showToast("Biometric authentication enabled");
+        }
+      } catch (err) {
+        showToast("Error enabling biometrics", "error");
+      }
+    } else {
+      await AsyncStorage.removeItem("biometric_enabled");
+      dispatch(setBiometricEnabled(false));
+      showToast("Biometric authentication disabled");
+    }
+  };
 
   const handleToggleTransactionMessage = async (enabled: boolean) => {
     const previousValue = txMsgEnabled;
@@ -158,6 +198,16 @@ export default function Profile() {
           href: "/(protected)/updatepin",
           color: "#8b5cf6", // violet
           kind: "link"
+        },
+        {
+          id: "bio",
+          icon: Fingerprint,
+          label: "Biometric Login",
+          subLabel: "Enable fingerprint authentication",
+          color: "#16a34a",
+          kind: "toggle",
+          value: biometricEnabled,
+          onToggle: handleToggleBiometric,
         },
       ]
     },

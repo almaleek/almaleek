@@ -11,8 +11,11 @@ import ApHeader from "@/components/headers/header";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
 import ApScrollView from "@/components/scrollview/scrollview";
 import BannerCarousel from "@/components/carousel/banner";
-import NetworkPhonePicker from "@/components/network/networkPicker";
+import NetworkPhonePicker, {
+  saveRecentPhoneNumber,
+} from "@/components/network/networkPicker";
 import PinModal from "@/components/modals/pinModal";
+import { detectNetworkName } from "@/utils/networkDetector";
 
 import { useToast } from "@/components/toast/toastProvider";
 import { useDispatch, useSelector } from "react-redux";
@@ -43,7 +46,7 @@ export default function DataPlanScreen() {
   const [phone, setPhone] = useState("");
   const [selectedNetwork, setSelectedNetwork] = useState<{
     name: string;
-    logo: any;
+    image: any;
   } | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("All");
@@ -53,6 +56,7 @@ export default function DataPlanScreen() {
   const [loading, setLoading] = useState(false);
   const [plansLoading, setPlansLoading] = useState(false);
   const [details, setDetails] = useState<any[]>([]);
+  const [useCashback, setUseCashback] = useState(false);
 
   const { user } = useSelector((state: RootState) => state.auth);
   const { plans, dataServices } = useSelector(
@@ -75,7 +79,7 @@ export default function DataPlanScreen() {
 
       const defaultNetwork = {
         name: defaultService.name,
-        logo: defaultService.image || require("../../../assets/images/mtn.png"),
+        image: defaultService.image || require("../../../assets/images/mtn.png"),
       };
 
       setSelectedNetwork(defaultNetwork);
@@ -114,7 +118,11 @@ export default function DataPlanScreen() {
     setPlansLoading(true);
     try {
       const result = await dispatch(
-        fetchDataPlans({ network: networkName.split(" ")[0], category })
+        fetchDataPlans({ 
+          network: networkName.split(" ")[0], 
+          category,
+          serviceType: "data" 
+        })
       );
 
       if (!fetchDataPlans.fulfilled.match(result)) {
@@ -163,7 +171,7 @@ export default function DataPlanScreen() {
         );
 
   // Handle network selection
-  const handleNetworkSelect = async (network: { name: string; logo: any }) => {
+  const handleNetworkSelect = async (network: { name: string; image: any }) => {
     setSelectedNetwork(network);
     loadCategoriesAndPlans(network);
   };
@@ -180,6 +188,7 @@ export default function DataPlanScreen() {
       phone,
       amount: selectedPlan.ourPrice,
       pinCode: pin,
+      useCashback,
     };
 
     setLoading(true); // Set loading immediately
@@ -187,33 +196,61 @@ export default function DataPlanScreen() {
     try {
       const resultAction = await dispatch(purchaseData(payload as any));
       if (purchaseData.fulfilled.match(resultAction)) {
+        saveRecentPhoneNumber({ userId: user?._id, phone }).catch(() => {});
         showToast("Data purchase successful!", "success");
         // Clear state before navigation
         setPinVisible(false);
         setPinCode("");
         
         router.push({
-          pathname: "/(protected)/history/[id]",
-          params: { id: resultAction.payload.transactionId },
+          pathname: "/(protected)/(services)/success",
+          params: { 
+            status: "success",
+            service: "Data Bundle",
+            network: selectedNetwork?.name,
+            amount: selectedPlan.ourPrice,
+            transactionId: resultAction.payload.transactionId 
+          },
         });
       } else {
         const transactionId = resultAction.payload?.transactionId;
-        if (transactionId) {
-          setPinVisible(false);
-          setPinCode("");
-          
-          router.push({
-            pathname: "/(protected)/history/[id]",
-            params: { id: transactionId },
-          });
-        } else {
-          showToast(resultAction.payload?.error || "Purchase failed", "error");
-        }
+        setPinVisible(false);
+        setPinCode("");
+        
+        router.push({
+          pathname: "/(protected)/(services)/success",
+          params: { 
+            status: "failed",
+            service: "Data Bundle",
+            network: selectedNetwork?.name,
+            amount: selectedPlan.ourPrice,
+            message: resultAction.payload?.error || "Purchase failed",
+            transactionId: transactionId || ""
+          },
+        });
       }
     } catch (error) {
       showToast("An unexpected error occurred", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Auto-detect network
+  const detectNetwork = (phone: string) => {
+    const networkName = detectNetworkName(phone);
+    if (networkName && dataServices.length) {
+      const found = dataServices.find((s: any) => 
+        s.name.toLowerCase().includes(networkName.toLowerCase())
+      );
+      if (found && found.name !== selectedNetwork?.name) {
+        const newNetwork = {
+          name: found.name,
+          image: found.image || require("../../../assets/images/mtn.png"),
+        };
+        setSelectedNetwork(newNetwork);
+        loadCategoriesAndPlans(newNetwork);
+      }
     }
   };
 
@@ -235,11 +272,15 @@ export default function DataPlanScreen() {
             selectedNetwork={selectedNetwork as any}
             setSelectedNetwork={handleNetworkSelect as any}
             phone={phone}
-            setPhone={setPhone}
+            setPhone={(num) => {
+              setPhone(num);
+              detectNetwork(num);
+            }}
             networks={dataServices.map((s: any) => ({
               name: s.name,
               image: s.image || require("../../../assets/images/mtn.png"),
             }))}
+            userId={user?._id}
           />
         )}
 
@@ -331,6 +372,9 @@ export default function DataPlanScreen() {
           loading={loading}
           title="Review Data Purchase"
           details={details}
+          useCashback={useCashback}
+          setUseCashback={setUseCashback}
+          cashbackBalance={user?.cashbackBalance ?? 0}
           onSubmit={(pin) => {
             setPinCode(pin);
             handleFormSubmit(pin);

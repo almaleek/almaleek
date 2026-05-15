@@ -14,6 +14,8 @@ interface AppScrollViewProps {
   contentContainerStyle?: ViewStyle;
   showsVerticalScrollIndicator?: boolean;
   refreshControl?: React.ReactNode; // optional refreshControl
+  keyboardShouldPersistTaps?: "always" | "never" | "handled";
+  keyboardDismissMode?: "none" | "interactive" | "on-drag";
 }
 
 // Get screen height
@@ -27,6 +29,8 @@ export default function ApScrollView({
   contentContainerStyle,
   showsVerticalScrollIndicator = false,
   refreshControl,
+  keyboardShouldPersistTaps = "handled",
+  keyboardDismissMode = "on-drag",
 }: AppScrollViewProps) {
   return (
     <ScrollView
@@ -44,6 +48,8 @@ export default function ApScrollView({
       ]}
       showsVerticalScrollIndicator={showsVerticalScrollIndicator}
       refreshControl={refreshControl as any} // 🔥 optional support
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+      keyboardDismissMode={keyboardDismissMode}
     >
       {children}
     </ScrollView>
