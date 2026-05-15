@@ -91,11 +91,11 @@ export default function Profile() {
   const [transactionMessageCompanyName, setTransactionMessageCompanyName] = React.useState<string>("Almaleek");
   const [updatingTxMsg, setUpdatingTxMsg] = React.useState(false);
   const [txMsgEnabled, setTxMsgEnabled] = React.useState(
-    user?.transactionMessageEnabled !== false
+    user?.transactionMessageEnabled === true
   );
 
   React.useEffect(() => {
-    setTxMsgEnabled(user?.transactionMessageEnabled !== false);
+    setTxMsgEnabled(user?.transactionMessageEnabled === true);
   }, [user?.transactionMessageEnabled]);
 
   React.useEffect(() => {
