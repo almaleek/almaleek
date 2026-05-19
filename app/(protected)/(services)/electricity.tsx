@@ -355,6 +355,7 @@ export default function ElectricityScreen() {
             service: "Electricity",
             network: getProviderDisplayName(selectedProvider?.name || ""),
             amount: values.amount,
+            number: values.meterno,
             transactionId: result.payload.transactionId 
           },
         });
@@ -367,6 +368,7 @@ export default function ElectricityScreen() {
             service: "Electricity",
             network: getProviderDisplayName(selectedProvider?.name || ""),
             amount: values.amount,
+            number: values.meterno,
             message: (result.payload as any)?.error || "Purchase failed",
             transactionId: txId || ""
           },

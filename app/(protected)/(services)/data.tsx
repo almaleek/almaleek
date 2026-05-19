@@ -209,6 +209,7 @@ export default function DataPlanScreen() {
             service: "Data Bundle",
             network: selectedNetwork?.name,
             amount: selectedPlan.ourPrice,
+            number: phone,
             transactionId: resultAction.payload.transactionId 
           },
         });
@@ -224,6 +225,7 @@ export default function DataPlanScreen() {
             service: "Data Bundle",
             network: selectedNetwork?.name,
             amount: selectedPlan.ourPrice,
+            number: phone,
             message: resultAction.payload?.error || "Purchase failed",
             transactionId: transactionId || ""
           },

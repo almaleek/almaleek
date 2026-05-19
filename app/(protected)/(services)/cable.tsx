@@ -354,6 +354,7 @@ export default function CableScreen() {
               service: "Cable TV",
               network: selectedProvider,
               amount: selectedPlan?.ourPrice,
+              number: smartCardNo || customerDetails.smartCard || "",
               transactionId: resPayload.transactionId 
             },
           });
@@ -366,6 +367,7 @@ export default function CableScreen() {
             service: "Cable TV",
             network: selectedProvider,
             amount: selectedPlan?.ourPrice,
+            number: smartCardNo || customerDetails.smartCard || "",
             message: resPayload?.error || "Subscription failed",
             transactionId: resPayload?.transactionId || ""
           },

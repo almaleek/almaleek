@@ -161,6 +161,7 @@ export default function AirtimeScreen() {
             service: "Airtime",
             network: selectedNetwork?.name,
             amount: values.amount,
+            number: values.phone,
             transactionId: result.payload.transactionId 
           },
         });
@@ -173,6 +174,7 @@ export default function AirtimeScreen() {
             service: "Airtime",
             network: selectedNetwork?.name,
             amount: values.amount,
+            number: values.phone,
             message: result.payload?.error || "Purchase failed",
             transactionId: transactionId || ""
           },

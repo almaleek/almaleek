@@ -6,6 +6,7 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Clipboard,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
@@ -18,11 +19,13 @@ import {
   Download,
   Share2,
   MessageCircle,
+  Copy,
 } from "lucide-react-native";
 import ApScrollView from "@/components/scrollview/scrollview";
 import ApLoader from "@/components/loaders/mainloader";
 import ApSafeAreaView from "@/components/safeAreaView/safeAreaView";
 import ApHeader from "@/components/headers/header";
+import { useToast } from "@/components/toast/toastProvider";
 
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
@@ -33,6 +36,7 @@ export default function TransactionPage() {
   const dispatch = useDispatch<AppDispatch>();
   const receiptRef = useRef<View>(null);
   const [processing, setProcessing] = useState(false);
+  const { showToast } = useToast();
 
   const { transaction, loading } = useSelector(
     (state: RootState) => state.transactions
@@ -110,10 +114,25 @@ export default function TransactionPage() {
     }
   };
 
-  const RenderRow = ({ label, value }: { label: string; value: string }) => (
+  const handleCopy = (text: string) => {
+    Clipboard.setString(text);
+    showToast("Copied to clipboard!", "success");
+  };
+
+  const RenderRow = ({ label, value, canCopy = false }: { label: string; value: string; canCopy?: boolean }) => (
     <View className="flex-row justify-between py-2 border-b border-gray-200">
       <Text className="text-gray-600 font-medium">{label}</Text>
-      <Text className="text-gray-800 font-semibold">{value}</Text>
+      <View className="flex-row items-center">
+        <Text className="text-gray-800 font-semibold">{value}</Text>
+        {canCopy && value !== "N/A" && (
+          <TouchableOpacity 
+            onPress={() => handleCopy(value)}
+            className="ml-2 p-1"
+          >
+            <Copy size={16} color="#666" />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 
@@ -219,6 +238,7 @@ export default function TransactionPage() {
                 transaction.reference_no ||
                 "N/A"
               }
+              canCopy
             />
             <RenderRow
               label="Date"
@@ -278,13 +298,13 @@ export default function TransactionPage() {
               <RenderRow label="Meter No" value={transaction.meter_no} />
             )}
             {transaction.token && (
-              <RenderRow label="Token" value={transaction.token} />
+              <RenderRow label="Token" value={transaction.token} canCopy />
             )}
             {transaction.customer_name && (
               <RenderRow label="Customer" value={transaction.customer_name} />
             )}
             {transaction.waec_pin && (
-              <RenderRow label="Pin" value={transaction.waec_pin} />
+              <RenderRow label="Pin" value={transaction.waec_pin} canCopy />
             )}
 
             <RenderRow

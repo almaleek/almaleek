@@ -117,6 +117,7 @@ export default function TransferScreen() {
               status: "success",
               service: "Transfer",
               amount: pendingValues?.amount || "",
+              number: pendingValues?.accountNumber || "",
               transactionId: String(txId)
             },
           });
@@ -127,6 +128,7 @@ export default function TransferScreen() {
               status: "success",
               service: "Transfer",
               amount: pendingValues?.amount || "",
+              number: pendingValues?.accountNumber || "",
               transactionId: String(txId)
             },
           });
@@ -147,6 +149,7 @@ export default function TransferScreen() {
           status: "failed",
           service: "Transfer",
           amount: pendingValues?.amount || "",
+          number: pendingValues?.accountNumber || "",
           message: String(transferError),
           transactionId: ""
         },
@@ -231,6 +234,7 @@ const handleTransfer = async (values: any, enteredPin: string) => {
           status: "success",
           service: "Transfer",
           amount: values.amount,
+          number: values.accountNumber,
           transactionId: result.payload.transactionId 
         },
       });
@@ -242,6 +246,7 @@ const handleTransfer = async (values: any, enteredPin: string) => {
           status: "failed",
           service: "Transfer",
           amount: values.amount,
+          number: values.accountNumber,
           message: (result.payload as any)?.error || "Transfer failed",
           transactionId: transactionId || ""
         },

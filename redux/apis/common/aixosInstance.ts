@@ -1,9 +1,9 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-//  export const FINTECH_API_URL = "http://10.234.6.142:5000/api";
+ export const FINTECH_API_URL = "http://10.122.55.142:5000/api";
 // export const MARKETPLACE_API_URL = "http://10.173.176.142:5001/api";
-const FINTECH_API_URL = "https://romantic-comfort-production.up.railway.app/api"
+// const FINTECH_API_URL = "https://romantic-comfort-production.up.railway.app/api"
 export const MARKETPLACE_API_URL = "https://almaleekmarketplace-production.up.railway.app/api"
 
 

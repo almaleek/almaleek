@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ToastAndroid, Platform, Alert, ActivityIndicator } from "react-native";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ToastAndroid, Platform, Alert, ActivityIndicator, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { Eye, EyeOff, Plus, Copy, Wallet, Gift } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Clipboard from "expo-clipboard";
@@ -8,6 +8,9 @@ import axiosInstance from "@/redux/apis/common/aixosInstance";
 import { currentUser } from "@/redux/features/user/userThunk";
 import { AppDispatch } from "@/redux/store";
 import { useToast } from "@/components/toast/toastProvider";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CARD_WIDTH = SCREEN_WIDTH * 0.75;
 
 interface WalletCardProps {
   user: any;
@@ -22,11 +25,65 @@ export default function WalletCard({
 }: WalletCardProps) {
   const dispatch = useDispatch<AppDispatch>();
   const { showToast } = useToast();
-  const [generating, setGenerating] = useState(false);
+  const [generatingBank, setGeneratingBank] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  const hasAccount = useMemo(() => {
-    return Boolean(user?.account?.accountNumber);
-  }, [user?.account?.accountNumber]);
+  const accounts = useMemo(() => {
+    if (Array.isArray(user?.account)) return user.account;
+    if (user?.account && typeof user.account === 'object' && user.account.accountNumber) return [user.account];
+    return [];
+  }, [user?.account]);
+
+  const availableBanks = ["PALMPAY", "9PSB"];
+
+  const getMatchedAccount = (bankShortName: string) => {
+    return accounts.find((acc: any) => {
+      const savedName = acc.bankName?.toUpperCase() || "";
+      const searchName = bankShortName.toUpperCase();
+      // Match if exact, or if saved name contains search name (e.g. "9 Payment Service Bank" contains "9PSB" keywords)
+      // or if search name is 9PSB and saved name has '9' and 'PSB'
+      if (savedName === searchName) return true;
+      if (savedName.includes(searchName)) return true;
+      if (searchName === "9PSB" && savedName.includes("9") && (savedName.includes("PSB") || savedName.includes("PAYMENT"))) return true;
+      if (searchName === "PALMPAY" && savedName.includes("PALM")) return true;
+      return false;
+    });
+  };
+
+  const displayBanks = useMemo(() => {
+    return [...availableBanks].sort((a, b) => {
+      const hasA = !!getMatchedAccount(a);
+      const hasB = !!getMatchedAccount(b);
+      if (hasA && !hasB) return -1;
+      if (!hasA && hasB) return 1;
+      return 0;
+    });
+  }, [accounts]);
+
+  // Auto-scroll logic
+  useEffect(() => {
+    if (displayBanks.length <= 1) return;
+
+    const interval = setInterval(() => {
+      const nextIndex = (activeIndex + 1) % displayBanks.length;
+      scrollViewRef.current?.scrollTo({
+        x: nextIndex * (CARD_WIDTH + 12),
+        animated: true,
+      });
+      setActiveIndex(nextIndex);
+    }, 20000); // Scroll every 20 seconds
+
+    return () => clearInterval(interval);
+  }, [activeIndex, displayBanks.length]);
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const xOffset = event.nativeEvent.contentOffset.x;
+    const index = Math.round(xOffset / (CARD_WIDTH + 12));
+    if (index !== activeIndex) {
+      setActiveIndex(index);
+    }
+  };
 
   const copyToClipboard = async (text: string) => {
     if (!text) return;
@@ -38,22 +95,22 @@ export default function WalletCard({
     }
   };
 
-  const generateAccount = async () => {
-    if (generating) return;
-    setGenerating(true);
+  const generateAccount = async (bank: string) => {
+    if (generatingBank) return;
+    setGeneratingBank(bank);
     try {
-      await axiosInstance.post("/auth/generate-account");
+      await axiosInstance.post("/auth/generate-account", { bank });
       await dispatch(currentUser()).unwrap();
-      showToast("Account generated successfully", "success");
+      showToast(`${bank} account generated successfully`, "success");
     } catch (e: any) {
       const msg =
         e?.response?.data?.msg ||
         e?.response?.data?.error ||
         e?.message ||
-        "Failed to generate account";
+        `Failed to generate ${bank} account`;
       showToast(String(msg), "error");
     } finally {
-      setGenerating(false);
+      setGeneratingBank(null);
     }
   };
 
@@ -66,7 +123,7 @@ export default function WalletCard({
         style={styles.gradient}
       >
         {/* Top Row: Label & Toggle */}
-        <View className="flex-row justify-between items-center mb-1">
+        <View className="flex-row justify-between items-center mb-2">
           <View className="flex-row items-center gap-2">
             <View className="bg-white/20 p-1.5 rounded-full">
               <Wallet size={16} color="white" />
@@ -87,73 +144,102 @@ export default function WalletCard({
           </TouchableOpacity>
         </View>
 
-        {/* Balance Row */}
-        <View className="mb-4">
-          <Text className="text-4xl font-bold text-white">
-            {showBalance
-              ? `₦${Number(user?.balance ?? 0).toLocaleString()}`
-              : "•••••"}
-          </Text>
+        {/* Balance & Cashback Row */}
+        <View className="flex-row justify-between items-center mb-6">
+          <View>
+            <Text className="text-4xl font-bold text-white">
+              {showBalance
+                ? `₦${Number(user?.balance ?? 0).toLocaleString()}`
+                : "•••••"}
+            </Text>
+          </View>
+
+          <View className="bg-white/20 px-3 py-2 rounded-2xl flex-row items-center gap-2">
+            <View className="flex-row items-center gap-1.5">
+              <Gift size={12} color="white" />
+              <Text className="text-white/90 text-[10px] font-bold uppercase tracking-wider">Cashback</Text>
+            </View>
+            <View className="w-[1px] h-3 bg-white/30" />
+            <Text className="text-white font-bold text-base">
+              {showBalance ? `₦${Number(user?.cashbackBalance ?? 0).toLocaleString()}` : "••••"}
+            </Text>
+          </View>
         </View>
 
-        {/* Account Info & Cashback Row */}
-        <View className="flex-row justify-between items-end">
-          {/* Account Details */}
-          <View className="flex-1">
-            <View className="bg-black/20 px-3 py-1.5 rounded-lg flex-row items-center gap-2 self-start mb-2">
-               <Text className="text-white/90 text-xs font-medium uppercase tracking-wider">
-                {user?.account?.bankName || "Bank"}
-              </Text>
-            </View>
-
-            {hasAccount ? (
-              <>
-                <TouchableOpacity 
-                  activeOpacity={0.7}
-                  onPress={() => copyToClipboard(user?.account?.accountNumber)}
-                  className="flex-row items-center gap-2"
+        {/* Accounts Section */}
+        <View>
+          <ScrollView 
+            ref={scrollViewRef}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={CARD_WIDTH + 12}
+            decelerationRate="fast"
+            contentContainerStyle={{ gap: 12, paddingRight: 20 }}
+          >
+            {displayBanks.map((bank) => {
+              const acc = getMatchedAccount(bank);
+              
+              return (
+                <View 
+                  key={bank} 
+                  className="bg-black/10 p-4 rounded-2xl"
+                  style={{ width: CARD_WIDTH }}
                 >
-                  <Text className="text-white font-bold text-xl tracking-widest">
-                    {user?.account?.accountNumber}
-                  </Text>
-                  <Copy size={16} color="white" className="opacity-80" />
-                </TouchableOpacity>
-                <Text className="text-white/70 text-xs mt-1">
-                  {user?.account?.accountName || " "}
-                </Text>
-              </>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                disabled={generating}
-                onPress={generateAccount}
-                className="bg-white/20 px-4 py-3 rounded-2xl self-start flex-row items-center gap-2"
-              >
-                {generating ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Plus size={16} color="white" />
-                )}
-                <Text className="text-white font-semibold">
-                  {generating ? "Generating..." : "Generate Account"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Cashback Details */}
-          <View className="items-end pb-1">
-            <View className="bg-white/20 px-3 py-2 rounded-2xl flex-row items-center gap-2">
-              <View className="flex-row items-center gap-1.5">
-                <Gift size={12} color="white" />
-                <Text className="text-white/90 text-[10px] font-bold uppercase tracking-wider">Cashback</Text>
-              </View>
-              <View className="w-[1px] h-3 bg-white/30" />
-              <Text className="text-white font-bold text-base">
-                {showBalance ? `₦${Number(user?.cashbackBalance ?? 0).toLocaleString()}` : "••••"}
-              </Text>
-            </View>
-          </View>
+                  <View className="flex-row justify-between items-center mb-2">
+                    <View className="bg-black/20 px-2 py-1 rounded-md">
+                      <Text className="text-white/90 text-[10px] font-bold uppercase">
+                        {bank}
+                      </Text>
+                    </View>
+                    {acc && (
+                      <TouchableOpacity 
+                        onPress={() => copyToClipboard(acc.accountNumber)}
+                        className="p-1"
+                      >
+                        <Copy size={14} color="white" className="opacity-70" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  
+                  {acc ? (
+                    <View>
+                      <TouchableOpacity 
+                        activeOpacity={0.7}
+                        onPress={() => copyToClipboard(acc.accountNumber)}
+                        className="flex-row items-center gap-2"
+                      >
+                        <Text className="text-white font-bold text-xl tracking-widest">
+                          {acc.accountNumber}
+                        </Text>
+                        <Copy size={16} color="white" className="opacity-40" />
+                      </TouchableOpacity>
+                      <Text className="text-white/60 text-[20px] mt-1">
+                        {acc.accountName || " "}
+                      </Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      disabled={generatingBank !== null}
+                      onPress={() => generateAccount(bank)}
+                      className="bg-white/10 border border-white/20 border-dashed h-[50px] rounded-xl flex-row items-center justify-center gap-2"
+                    >
+                      {generatingBank === bank ? (
+                        <ActivityIndicator size="small" color="#ffffff" />
+                      ) : (
+                        <>
+                          <Plus size={14} color="white" />
+                          <Text className="text-white text-xs font-semibold">Generate {bank} Account</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })}
+          </ScrollView>
         </View>
 
         {/* Decorative Circles */}
@@ -180,6 +266,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     position: 'relative',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    // minHeight: 280
   },
 });
