@@ -3,7 +3,7 @@ import useAutoLogout from "@/hooks/use-auto-logout";
 import usePushNotifications from "@/hooks/use-push-notifications";
 import React, { useEffect, useState } from "react";
 import Constants from "expo-constants";
-import { Button, NativeModules, Platform } from "react-native";
+import { Button, Platform } from "react-native";
 import axiosInstance from "@/redux/apis/common/aixosInstance";
 import UpdateModal from "@/components/modals/updateModal";
 
@@ -61,7 +61,7 @@ export default function ProtectedLayout() {
   return (
     <>
       <Stack screenOptions={{ headerShown: false }} />
-      <Button title="Test Overlay" onPress={() => OverlayModule.showOverlay()} />
+    
       <UpdateModal
         visible={updateVisible}
         onClose={() => setUpdateVisible(false)}

@@ -72,20 +72,24 @@ export default function DataPlanScreen() {
 
   // Initialize default network and categories
   useEffect(() => {
-    if (dataServices.length) {
-      const defaultService =
-        dataServices.find((s: any) => s.name.toLowerCase() === "mtn") ||
-        dataServices[0];
+    if (selectedNetwork || !dataServices.length) return;
 
+    const enabled = dataServices.filter((s: any) => s?.status !== false);
+    const mtn =
+      enabled.find(
+        (s: any) => String(s?.name || "").split(" ")[0].toLowerCase() === "mtn"
+      ) || enabled[0];
+
+    if (mtn) {
       const defaultNetwork = {
-        name: defaultService.name,
-        image: defaultService.image || require("../../../assets/images/mtn.png"),
+        name: mtn.name,
+        image: mtn.image || require("../../../assets/images/mtn.png"),
       };
 
       setSelectedNetwork(defaultNetwork);
       loadCategoriesAndPlans(defaultNetwork);
     }
-  }, [dataServices]);
+  }, [dataServices, selectedNetwork]);
 
   // Load categories and all plans for a network
   const loadCategoriesAndPlans = async (network: { name: string }) => {
@@ -209,6 +213,7 @@ export default function DataPlanScreen() {
             service: "Data Bundle",
             network: selectedNetwork?.name,
             amount: selectedPlan.ourPrice,
+            number: phone,
             transactionId: resultAction.payload.transactionId 
           },
         });
@@ -224,6 +229,7 @@ export default function DataPlanScreen() {
             service: "Data Bundle",
             network: selectedNetwork?.name,
             amount: selectedPlan.ourPrice,
+            number: phone,
             message: resultAction.payload?.error || "Purchase failed",
             transactionId: transactionId || ""
           },

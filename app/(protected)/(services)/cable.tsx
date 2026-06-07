@@ -89,7 +89,6 @@ export default function CableScreen() {
   const [details, setDetails] = useState<any[]>([]);
   const {easyAccessPlans, cableServices} = useSelector((state:RootState)=>state.easyAccessdataPlans)
   const [lastSmartcard, setLastSmartcard] = useState("");
-  const [plansLoading, setPlansLoading] = useState(false);
   const [useCashback, setUseCashback] = useState(false);
   
   const [allPlans, setAllPlans] = useState<any[]>([]);
@@ -328,7 +327,7 @@ export default function CableScreen() {
     }
 
     const payload = {
-      productCode: selectedPlan?.code || "",
+      productCode: selectedPlan?.easyaccessId || "",
       cableType: selectedProvider,
       smartCardNo: smartCardNo || customerDetails.smartCard || "",
       pinCode: pin,
@@ -336,6 +335,8 @@ export default function CableScreen() {
       amount: Number(selectedPlan?.ourPrice || 0),
       useCashback,
     };
+
+    console.log("Purchase payload", payload);
   
 
     try {
@@ -354,6 +355,7 @@ export default function CableScreen() {
               service: "Cable TV",
               network: selectedProvider,
               amount: selectedPlan?.ourPrice,
+              number: smartCardNo || customerDetails.smartCard || "",
               transactionId: resPayload.transactionId 
             },
           });
@@ -366,6 +368,7 @@ export default function CableScreen() {
             service: "Cable TV",
             network: selectedProvider,
             amount: selectedPlan?.ourPrice,
+            number: smartCardNo || customerDetails.smartCard || "",
             message: resPayload?.error || "Subscription failed",
             transactionId: resPayload?.transactionId || ""
           },

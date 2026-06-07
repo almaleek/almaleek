@@ -190,6 +190,7 @@ export default function ExamScreen() {
             service: "Exam PIN",
             network: selectedProvider?.name || selectedProvider?.productName,
             amount: amount,
+            number: payload.phone,
             transactionId: transactionId || ""
           },
         });
@@ -203,6 +204,7 @@ export default function ExamScreen() {
             service: "Exam PIN",
             network: selectedProvider?.name || selectedProvider?.productName,
             amount: amount,
+            number: payload.phone,
             message: result?.payload?.error || "Exam purchase failed..",
             transactionId: transactionId || ""
           },

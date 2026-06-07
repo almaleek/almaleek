@@ -5,7 +5,7 @@ export default {
     "name": "Almaleek",
     "slug": "almaleek",
     "owner": "almaleek",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "almaleek",

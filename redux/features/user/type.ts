@@ -20,5 +20,5 @@ export interface User {
     accountNumber: string;
     accountName: string;
     virtualAccountId: string;
-  };
+  }[];
 }

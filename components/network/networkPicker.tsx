@@ -109,6 +109,7 @@ export default function NetworkPhonePicker({
   networks, // <<==== NEW PROP
   userId,
 }: {
+  
   selectedNetwork: NetworkItem | null;
   setSelectedNetwork: (network: NetworkItem) => void;
   phone: string;
@@ -162,8 +163,7 @@ export default function NetworkPhonePicker({
     .filter((p) => {
       if (!query) return true;
       return String(p.phone || "").includes(query);
-    })
-    .slice(0, 6);
+    }).slice(0, 10);
 
   return (
     <>

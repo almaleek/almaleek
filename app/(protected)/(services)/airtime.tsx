@@ -70,28 +70,24 @@ export default function AirtimeScreen() {
     image: any;
   } | null>(null);
 
-  const defaultNetwork =
-    dataServices?.length > 0
-      ? (() => {
-          const defaultService =
-            dataServices.find((s: any) => s.name.toLowerCase() === "mtn") ||
-            dataServices[0];
-          return {
-            name: defaultService.name,
-            image:
-              defaultService.image ||
-              require("../../../assets/images/mtn.png"),
-          };
-        })()
-      : null;
-
-  const displayedNetwork = selectedNetwork || defaultNetwork;
-
   useEffect(() => {
-    if (!selectedNetwork && defaultNetwork) {
-      setSelectedNetwork(defaultNetwork);
+    if (selectedNetwork || !dataServices.length) return;
+
+    const enabled = dataServices.filter((s: any) => s?.status !== false);
+    const mtn =
+      enabled.find(
+        (s: any) => String(s?.name || "").split(" ")[0].toLowerCase() === "mtn"
+      ) || enabled[0];
+
+    if (mtn) {
+      setSelectedNetwork({
+        name: mtn.name,
+        image: mtn.image || require("../../../assets/images/mtn.png"),
+      });
     }
-  }, [defaultNetwork, selectedNetwork]);
+  }, [dataServices, selectedNetwork]);
+
+  const displayedNetwork = selectedNetwork;
 
   const banners = [
     require("../../../assets/images/banner1.png"),
@@ -161,6 +157,7 @@ export default function AirtimeScreen() {
             service: "Airtime",
             network: selectedNetwork?.name,
             amount: values.amount,
+            number: values.phone,
             transactionId: result.payload.transactionId 
           },
         });
@@ -173,6 +170,7 @@ export default function AirtimeScreen() {
             service: "Airtime",
             network: selectedNetwork?.name,
             amount: values.amount,
+            number: values.phone,
             message: result.payload?.error || "Purchase failed",
             transactionId: transactionId || ""
           },

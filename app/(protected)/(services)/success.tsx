@@ -7,7 +7,7 @@ import ApHeader from "@/components/headers/header";
 
 export default function SuccessScreen() {
   const router = useRouter();
-  const { status, message, transactionId, amount, service, network } = useLocalSearchParams();
+  const { status, message, transactionId, amount, service, network, number } = useLocalSearchParams();
   const isSuccess = status === "success";
 
   return (
@@ -43,12 +43,18 @@ export default function SuccessScreen() {
               <Text style={styles.detailValue}>{network}</Text>
             </View>
           )}
+          {number && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Number/Beneficiary:</Text>
+              <Text style={styles.detailValue}>{number}</Text>
+            </View>
+          )}
           {/* {amount && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Amount:</Text>
               <Text style={styles.detailValue}>₦{Number(amount).toLocaleString()}</Text>
             </View>
-          )}  */}
+          )} */}
           {transactionId && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Transaction ID:</Text>

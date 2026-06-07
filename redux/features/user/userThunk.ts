@@ -141,7 +141,15 @@ export const withdrawBonus = createAsyncThunk(
   "auth/withdrawBonus",
   async (amount: number | undefined, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post("/auth/withdraw-bonus", { amount });
+      const response = await axiosInstance.post(
+        "/auth/withdraw-bonus",
+        { amount },
+        {
+          headers: {
+            "x-idempotency-key": `withdraw-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          },
+        }
+      );
       return response.data;
     } catch (error: any) {
       return rejectWithValue(
