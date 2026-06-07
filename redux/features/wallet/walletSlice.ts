@@ -31,7 +31,15 @@ export const createVirtualAccount = createAsyncThunk(
   "wallet/createVirtualAccount",
   async (data: CreateAccountPayload, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post("/wallets/create-virtual-account", data);
+      const response = await axiosInstance.post(
+        "/wallets/create-virtual-account",
+        data,
+        {
+          headers: {
+            "x-idempotency-key": `wallet-create-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          },
+        }
+      );
       if (!response.data.success) {
         return rejectWithValue(response.data.message || "Failed to create virtual account");
       }

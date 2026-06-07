@@ -215,7 +215,7 @@ export default function WalletCard({
                         </Text>
                         <Copy size={16} color="white" className="opacity-40" />
                       </TouchableOpacity>
-                      <Text className="text-white/60 text-[20px] mt-1">
+                      <Text className="text-white/60 text-[12px] mt-1">
                         {acc.accountName || " "}
                       </Text>
                     </View>

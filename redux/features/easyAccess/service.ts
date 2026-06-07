@@ -111,7 +111,12 @@ export const purchaseData = createAsyncThunk<
   try {
     const response = await axiosInstance.post(
       "/easyaccess/purchase-data",
-      payload
+      payload,
+      {
+        headers: {
+          "x-idempotency-key": `ea-data-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        },
+      }
     );
 
     return {
@@ -137,7 +142,12 @@ export const purchaseAirtime = createAsyncThunk<
   try {
     const response = await axiosInstance.post(
       "/easyaccess/purchase-airtime",
-      payload
+      payload,
+      {
+        headers: {
+          "x-idempotency-key": `ea-airtime-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        },
+      }
     );
     return {
       message: response.data.message,
@@ -179,7 +189,12 @@ export const purchaseTvSub = createAsyncThunk(
     try {
       const response = await axiosInstance.post(
         "/easyaccess/purchase-tvsub",
-        payload
+        payload,
+        {
+          headers: {
+            "x-idempotency-key": `ea-tv-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          },
+        }
       );
 
       return {
@@ -223,7 +238,12 @@ export const purchaseElectricity = createAsyncThunk<
   try {
     const response = await axiosInstance.post(
       "/easyaccess/purchase-electricity",
-      payload
+      payload,
+      {
+        headers: {
+          "x-idempotency-key": `ea-elec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        },
+      }
     );
     console.log(response, "the api...")
 
@@ -248,7 +268,12 @@ export const purchaseExam = createAsyncThunk(
     try {
       const response = await axiosInstance.post(
         "/easyaccess/purchase-exam",
-        payload
+        payload,
+        {
+          headers: {
+            "x-idempotency-key": `ea-exam-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          },
+        }
       );
       return response.data;
     } catch (error: any) {
