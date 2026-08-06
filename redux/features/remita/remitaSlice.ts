@@ -8,7 +8,7 @@ export const fetchBanks = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.get("/remita/banks");
-      return response.data?.data?.banks || [];
+      return response.data?.data?.banks || response.data?.data || [];
     } catch (error: any) {
       return rejectWithValue(error.response?.data || "Failed to fetch banks");
     }
@@ -26,7 +26,7 @@ export const performNameEnquiry = createAsyncThunk(
         "/remita/name-enquiry",
         payload
       );
-      return response.data;
+      return response.data || response.data?.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data || "Name enquiry failed");
     }
@@ -110,7 +110,8 @@ const remitaSlice = createSlice({
     });
     builder.addCase(fetchBanks.fulfilled, (state, action) => {
       state.banksLoading = false;
-      state.banks = action.payload;
+      // Extract banks from normalized backend response
+      state.banks = action.payload?.data?.banks || action.payload || [];
     });
     builder.addCase(fetchBanks.rejected, (state, action) => {
       state.banksLoading = false;
@@ -126,14 +127,22 @@ const remitaSlice = createSlice({
     builder.addCase(performNameEnquiry.fulfilled, (state, action) => {
       state.enquiryLoading = false;
       const payload: any = action.payload || {};
-      const status = payload?.data?.status || payload?.status;
+      const status = payload?.status || payload?.data?.status || payload?.data?.data || payload?.responseCode;
+      
+      console.log("Name enquiry payload:", payload);
+      console.log("Name enquiry status:", status);
 
-      if (status === "00") {
-        state.enquiryResult = payload.data;
+      // Check for success: "00", "success", or sourceAccountName exists
+      const isSuccess = status === "00" || status === "success" || !!payload?.sourceAccountName;
+
+      if (isSuccess) {
+        state.enquiryResult = payload;
         state.enquiryError = null;
+        console.log("Name enquiry successful, result:", state.enquiryResult);
       } else {
         state.enquiryResult = null;
         state.enquiryError = payload;
+        console.log("Name enquiry failed");
       }
     });
     builder.addCase(performNameEnquiry.rejected, (state, action) => {
