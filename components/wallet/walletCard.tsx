@@ -8,6 +8,7 @@ import axiosInstance from "@/redux/apis/common/aixosInstance";
 import { currentUser } from "@/redux/features/user/userThunk";
 import { AppDispatch } from "@/redux/store";
 import { useToast } from "@/components/toast/toastProvider";
+import { useRouter } from "expo-router";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = SCREEN_WIDTH * 0.75;
@@ -26,8 +27,13 @@ export default function WalletCard({
   const dispatch = useDispatch<AppDispatch>();
   const { showToast } = useToast();
   const [generatingBank, setGeneratingBank] = useState<string | null>(null);
+  const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  
+
+  
+
 
   const accounts = useMemo(() => {
     if (Array.isArray(user?.account)) return user.account;
@@ -35,7 +41,7 @@ export default function WalletCard({
     return [];
   }, [user?.account]);
 
-  const availableBanks = ["PALMPAY", "9PSB"];
+  const availableBanks = ["SAFEHAVEN"];
 
   const getMatchedAccount = (bankShortName: string) => {
     return accounts.find((acc: any) => {
@@ -76,6 +82,9 @@ export default function WalletCard({
 
     return () => clearInterval(interval);
   }, [activeIndex, displayBanks.length]);
+
+
+
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const xOffset = event.nativeEvent.contentOffset.x;
@@ -223,7 +232,14 @@ export default function WalletCard({
                     <TouchableOpacity
                       activeOpacity={0.8}
                       disabled={generatingBank !== null}
-                      onPress={() => generateAccount(bank)}
+                      onPress={() => {
+                        if (availableBanks[0] === "SAFEHAVEN") {
+                          router.push("/(protected)/account");
+                          
+                        } else {
+                          generateAccount(bank);
+                        }
+                      }}
                       className="bg-white/10 border border-white/20 border-dashed h-[50px] rounded-xl flex-row items-center justify-center gap-2"
                     >
                       {generatingBank === bank ? (

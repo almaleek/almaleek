@@ -55,8 +55,13 @@ import {
   ChevronRight,
   ArrowRight,
   ShieldCheck,
-  LogOut
+  LogOut,
+  ArrowRightLeft,
+  Banknote,
+  CreditCard,
+  Users
 } from "lucide-react-native";
+import { Menu } from "lucide-react-native";
 
 const { width } = Dimensions.get('window');
 
@@ -299,62 +304,86 @@ export default function HomePage() {
   const [refreshing, setRefreshing] = useState(false);
   const toggleBalance = () => setShowBalance((prev) => !prev);
 
-  const actions = [
+  const transferActions = [
     {
       id: 1,
+      icon: <Users size={22} color="#fff" />,
+      bg: "bg-green-500",
+      label: "To Almaleek",
+      link: "(protected)/(services)/transfer",
+    },
+    {
+      id: 2,
+      icon: <ArrowRightLeft size={22} color="#fff" />,
+      bg: "bg-blue-500",
+      label: "To Bank",
+      link: "(protected)/(services)/transfer",
+    },
+    {
+      id: 3,
+      icon: <Banknote size={22} color="#fff" />,
+      bg: "bg-purple-500",
+      label: "Withdraw",
+      link: "(protected)/(services)/transfer",
+    },
+  ];
+
+  const quickActions = [
+    {
+      id: 4,
       icon: <Phone size={22} color="#fff" />,
       bg: "bg-blue-500",
       label: "Airtime",
       link: "(protected)/(services)/airtime",
     },
     {
-      id: 2,
+      id: 5,
       icon: <Wifi size={22} color="#fff" />,
       bg: "bg-emerald-500",
       label: "Data",
       link: "(protected)/(services)/data",
     },
     {
-      id: 3,
+      id: 6,
       icon: <Bolt size={22} color="#fff" />,
       bg: "bg-yellow-500",
       label: "Electricity",
       link: "(protected)/(services)/electricity",
     },
     {
-      id: 4,
+      id: 7,
       icon: <GraduationCap size={22} color="#fff" />,
       bg: "bg-indigo-500",
       label: "Exam",
       link: "(protected)/(services)/exam",
     },
     {
-      id: 5,
+      id: 8,
       icon: <Tv2 size={22} color="#fff" />,
       bg: "bg-orange-500",
       label: "TV",
       link: "(protected)/(services)/cable",
     },
     {
-      id: 7,
+      id: 10,
       icon: user?.role === "agent" ? <ShieldCheck size={22} color="#fff" /> : <Gift size={22} color="#fff" />,
       bg: "bg-purple-500",
       label: user?.role === "agent" ? "Admin" : "Reward",
       link: "(protected)/(tabs)/reward",
     },
     {
-      id: 8,
+      id: 11,
       icon: <ShoppingBag size={22} color="#fff" />,
       bg: "bg-slate-600",
       label: "Market",
       link: "(protected)/marketplace",
     },
     {
-      id: 9,
-      icon: <LogOut size={22} color="#fff" />,
+      id: 12,
+      icon: <Menu size={22} color="#fff" />,
       bg: "bg-red-500",
-      label: "Logout",
-      link: "logout",
+      label: "More",
+      link: "(protected)/profile",
     },
   ];
 
@@ -438,11 +467,27 @@ export default function HomePage() {
             </View>
 
 
+            {/* Transfer Actions */}
+            <View className="mt-8 px-6">
+                <Text className="text-base font-bold text-gray-900 mb-2 px-1">Send & Receive</Text>
+                <View className="flex-row flex-wrap justify-between">
+                {transferActions.map((action) => (
+                    <QuickActionButton
+                    key={action.id}
+                    icon={action.icon}
+                    label={action.label}
+                    link={action.link}
+                    bg={action.bg}
+                    />
+                ))}
+                </View>
+            </View>
+
             {/* Quick Actions */}
-            <View className="mt-8 px-1">
+            <View className="mt-8 px-6">
                 <Text className="text-base font-bold text-gray-900 mb-4 px-1">Quick Actions</Text>
                 <View className="flex-row flex-wrap justify-between">
-                {actions.map((action) => (
+                {quickActions.map((action) => (
                     <QuickActionButton
                     key={action.id}
                     icon={action.icon}

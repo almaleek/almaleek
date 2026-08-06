@@ -65,6 +65,8 @@ export default function TransferScreen() {
   } = useSelector((state: RootState) => state.remita);
   const { user } = useSelector((state: RootState) => state.auth);
   const {showToast} = useToast();
+  
+ 
 
   const [bankModalVisible, setBankModalVisible] = useState(false);
   const [selectedBank, setSelectedBank] = useState<any>(null);
@@ -92,8 +94,10 @@ export default function TransferScreen() {
   useEffect(() => {
     if (!banks.length) {
       dispatch(fetchBanks());
+      
     }
   }, [dispatch, banks.length]);
+  
 
   useEffect(() => {
     if (transferResult && !handledOnceRef.current) {
@@ -161,10 +165,18 @@ export default function TransferScreen() {
   }, [transferResult, transferError, dispatch]);
 
   const bankList = Array.isArray(banks) ? banks : [];
-  const filteredBanks = bankList.filter((bank: any) => {
+  // Deduplicate banks by bankCode
+  const deduplicatedBanks = bankList.reduce((acc: any[], bank: any) => {
+    if (!acc.find((b: any) => b.bankCode === bank.bankCode)) {
+      acc.push(bank);
+    }
+    return acc;
+  }, []);
+  const filteredBanks = deduplicatedBanks.filter((bank: any) => {
     const term = searchText.toLowerCase();
+    const bankTitle = bank.bankName || bank.name || "";
     return (
-      bank.bankName.toLowerCase().includes(term) ||
+      bankTitle.toLowerCase().includes(term) ||
       String(bank.bankCode).toLowerCase().includes(term)
     );
   });
@@ -173,7 +185,7 @@ export default function TransferScreen() {
     setFieldValue("accountNumber", text);
     const prefix = text && text.length >= 3 ? text.slice(0, 3) : "";
     if (prefix.length === 3) {
-      const hasMatch = bankList.some((bank: any) =>
+      const hasMatch = deduplicatedBanks.some((bank: any) =>
         String(bank.bankCode).startsWith(prefix)
       );
       setShowAccountBankMatches(hasMatch);
@@ -198,31 +210,32 @@ export default function TransferScreen() {
   };
 
 const handleTransfer = async (values: any, enteredPin: string) => {
-  if (!enquiryResult?.sourceAccountName) {
-    showToast("Please verify account details first", "error");
-    return;
-  }
+    if (!enquiryResult?.sourceAccountName) {
+      showToast("Please verify account details first", "error");
+      return;
+    }
 
-  if (!enteredPin || enteredPin.length !== 4) {
-    showToast("Enter a valid 4-digit PIN", "error");
-    return;
-  }
+    if (!enteredPin || enteredPin.length !== 4) {
+      showToast("Enter a valid 4-digit PIN", "error");
+      return;
+    }
 
-  const payload = {
-  destinationAccountName:  enquiryResult?.sourceAccountName,
-  destinationBankCode: values.bankCode,
-  destinationAccount: values.accountNumber,
-  sourceAccountName: enquiryResult?.sourceAccountName,
-  sourceAccount: enquiryResult?.sourceAccount,
-  sourceBankCode: enquiryResult?.sourceBankCode,
-  destinationEmail: user?.email, // optional
-  amount: Number(values.amount),
-  transactionDescription: values.narration,
-  paymentIdentifier: `TXN-${Date.now()}`,
-  userId: user?._id,
-  pinCode: enteredPin,
-  useCashback,
-  };
+    const payload = {
+    destinationAccountName: enquiryResult?.sourceAccountName,
+    nameEnquiryReference: enquiryResult.nameEnquiryReference || enquiryResult.sessionId,
+    destinationBankCode: values.bankCode,
+    destinationAccount: values.accountNumber,
+    sourceAccountName: enquiryResult?.sourceAccountName,
+    sourceAccount: enquiryResult?.sourceAccount,
+    sourceBankCode: enquiryResult?.sourceBankCode,
+    destinationEmail: user?.email, // optional
+    amount: Number(values.amount),
+    transactionDescription: values.narration,
+    paymentIdentifier: `TXN-${Date.now()}`,
+    userId: user?._id,
+    pinCode: enteredPin,
+    useCashback,
+    };
 
   try {
     const result = await dispatch(initiateTransfer(payload as any));
@@ -266,7 +279,7 @@ const handleTransfer = async (values: any, enteredPin: string) => {
       <ApHeader title="Transfer" />
       <StatusBar style="dark" />
 
-      {banksLoading && bankList.length === 0 ? (
+      {banksLoading && deduplicatedBanks.length === 0 ? (
         <MainLoader />
       ) : (
         <ApScrollView style={{ backgroundColor: "white" }}>
@@ -296,7 +309,7 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                     : "";
                 const accountBankMatches =
                   accountPrefix.length === 3
-                    ? bankList.filter((bank: any) =>
+                    ? deduplicatedBanks.filter((bank: any) =>
                         String(bank.bankCode).startsWith(accountPrefix)
                       )
                     : [];
@@ -331,7 +344,7 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                               <BankLogo bankName={item.bankName} bankCode={item.bankCode} size={32} />
                               <View>
                                 <Text className="text-gray-900 font-medium">
-                                  {item.bankName}
+                                  {item.bankName || item.name}
                                 </Text>
                               
                               </View>
@@ -360,15 +373,17 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                         </Text>
                       )} 
 
-                      {enquiryResult && enquiryResult?.sourceAccountName && (
+                      {enquiryResult && (
                         <View className="bg-green-50 p-3 rounded-lg mb-4 flex-row items-center border border-green-200">
-
                           <CheckCircle size={20} color="#16a34a" />
                           <View className="ml-2">
                             <Text className="text-green-700 font-bold uppercase">
-                              {enquiryResult.sourceAccountName}
+                              {enquiryResult.sourceAccountName || 
+                               enquiryResult.accountName || 
+                               enquiryResult.account_name || 
+                               enquiryResult.name || 
+                               "Account Verified"}
                             </Text>
-                          
                           </View>
                         </View>
                       )}
@@ -395,7 +410,11 @@ const handleTransfer = async (values: any, enteredPin: string) => {
                       <View className="mb-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
                         <Text className="text-gray-700 font-semibold">Recipient</Text>
                         <Text className="text-gray-900 mt-1">
-                          {enquiryResult?.sourceAccountName || "Unknown"}
+                          {enquiryResult?.sourceAccountName || 
+                           enquiryResult?.accountName || 
+                           enquiryResult?.account_name || 
+                           enquiryResult?.name || 
+                           "Unknown"}
                         </Text>
                         <Text className="text-gray-600">
                           {selectedBank?.bankName || "Bank"} • {values.accountNumber}
